@@ -945,36 +945,26 @@
 
     // ================= SUPABASE REALTIME LISTENER =================
     function setupRealtimeListener() {
-      if (!supabase) return;
+      if (!supabaseClient) return;
 
       try {
-        realtimeChannel = supabase
-          .channel('pedidos-channel')
+        if (realtimeChannel) {
+          try { supabaseClient.removeChannel(realtimeChannel); } catch (e) {}
+        }
+
+        realtimeChannel = supabaseClient
+          .channel('schema-db-changes')
           .on(
             'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'pedidos' },
+            { event: '*', schema: 'public', table: 'pedidos' },
             (payload) => {
-              console.log('⚡ Novo Pedido via Realtime Supabase:', payload);
-              playNewOrderSound();
-              const clienteNome = payload.new.cliente_nome || payload.new.nome || 'Cliente';
-              showToast(`Novo pedido #${payload.new.id || ''} recebido de ${clienteNome}!`);
-              carregarPedidos();
-            }
-          )
-          .on(
-            'postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'pedidos' },
-            (payload) => {
-              console.log('⚡ Pedido Atualizado via Supabase:', payload);
-              carregarPedidos();
-            }
-          )
-          .on(
-            'postgres_changes',
-            { event: 'DELETE', schema: 'public', table: 'pedidos' },
-            (payload) => {
-              console.log('⚡ Pedido Excluído via Supabase:', payload);
-              carregarPedidos();
+              console.log('Novo evento recebido:', payload);
+              if (payload.eventType === 'INSERT') {
+                playNewOrderSound();
+                const clienteNome = payload.new ? (payload.new.cliente_nome || payload.new.nome || 'Cliente') : 'Cliente';
+                showToast(`Novo pedido #${payload.new ? payload.new.id : ''} recebido de ${clienteNome}!`);
+              }
+              fetchOrders(); // Função que busca e redesenha a lista na tela
             }
           )
           .on(
@@ -986,6 +976,7 @@
             }
           )
           .subscribe((status) => {
+            console.log('Realtime status:', status);
             const badge = document.getElementById('realtime-status-badge');
             if (badge && status === 'SUBSCRIBED') {
               badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300';
@@ -1007,7 +998,7 @@
             playNewOrderSound();
             const clienteNome = event.data.order.cliente_nome || event.data.order.nome || 'Cliente';
             showToast(`Novo pedido de ${clienteNome}!`);
-            carregarPedidos();
+            fetchOrders();
           } else if (event.data.type === 'ORDER_DELETED') {
             const deletedId = event.data.orderId;
             ordersList = ordersList.filter(o => String(o.id) !== String(deletedId));
@@ -1029,16 +1020,16 @@
       } catch (e) {}
     }
 
-    // ================= CARREGAR PEDIDOS DO SUPABASE =================
-    async function carregarPedidos(showSpinner = false) {
+    // ================= CARREGAR PEDIDOS DO SUPABASE (fetchOrders) =================
+    async function fetchOrders(showSpinner = false) {
       const refreshIcon = document.getElementById('refresh-icon');
       if (showSpinner && refreshIcon) refreshIcon.classList.add('animate-spin');
 
       let remoteOrders = [];
 
-      if (supabase) {
+      if (supabaseClient) {
         try {
-          const { data, error } = await supabase
+          const { data, error } = await supabaseClient
             .from('pedidos')
             .select('*')
             .order('created_at', { ascending: false });
@@ -1086,7 +1077,8 @@
       }
     }
 
-    const loadOrders = carregarPedidos;
+    const carregarPedidos = fetchOrders;
+    const loadOrders = fetchOrders;
 
     // ================= ATUALIZAR STATUS DO PEDIDO (UPDATE) =================
     async function updateOrderStatus(orderId, newStatus) {
@@ -2186,9 +2178,10 @@
       setTimeout(() => toast.remove(), 6000);
     }
 
-    // Iniciar verificação de autenticação
+    // Iniciar verificação de autenticação e escuta Realtime
     document.addEventListener('DOMContentLoaded', () => {
       checkAuthentication();
+      setupRealtimeListener();
     });
   </script>
 
