@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Minus, Check, ShoppingBag, Sparkles } from 'lucide-react';
 import { Product } from '../types';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, resolveProductImageUrl, handleProductImageError } from '../utils/formatters';
 
 interface ProductCardProps {
   product: Product;
@@ -71,13 +71,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       <div>
         <div className="relative h-36 xs:h-40 sm:h-48 w-full overflow-hidden bg-[#FAF8F5]">
           <img
-            src={product.image}
+            src={resolveProductImageUrl(product.image)}
+            data-original-src={product.image}
             alt={product.name}
             loading="lazy"
             referrerPolicy="no-referrer"
-            onError={(e) => {
-              e.currentTarget.src = 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=600&auto=format&fit=crop&q=80';
-            }}
+            onError={(e) => handleProductImageError(e, product.image)}
             className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
           />
 

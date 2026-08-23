@@ -1,3 +1,4 @@
+import React from 'react';
 import { Order, StoreConfig } from '../types';
 
 export const formatCurrency = (value: number): string => {
@@ -111,3 +112,55 @@ export const getWhatsAppLink = (order: Order, config: StoreConfig): string => {
   const cleanPhone = config.phoneWhatsApp.replace(/\D/g, '');
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 };
+
+/**
+ * Normalizes and resolves product image URLs to ensure reliable loading in both dev and prod
+ */
+export const resolveProductImageUrl = (url: string | undefined): string => {
+  if (!url) {
+    return '/imagens/banana_da_terra_perfeita_1787338305708.jpg';
+  }
+  // If already full http/https, return as is
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
+  }
+  // If it references /src/assets/images/, convert to /imagens/
+  if (url.includes('/src/assets/images/')) {
+    const filename = url.split('/').pop() || '';
+    return `/imagens/${filename}`;
+  }
+  // Ensure leading slash if relative
+  if (!url.startsWith('/')) {
+    return `/${url}`;
+  }
+  return url;
+};
+
+/**
+ * Robust image fallback handler that tries multiple alternative local paths before default
+ */
+export const handleProductImageError = (
+  e: React.SyntheticEvent<HTMLImageElement, Event>,
+  originalUrl?: string
+) => {
+  const target = e.currentTarget;
+  const currentSrc = target.src;
+  const url = originalUrl || target.getAttribute('data-original-src') || currentSrc;
+  const filename = url.split('/').pop()?.split('?')[0] || '';
+
+  // Try local relative path if full path failed
+  if (!target.dataset.triedRelative && filename) {
+    target.dataset.triedRelative = 'true';
+    target.src = `imagens/${filename}`;
+    return;
+  }
+  // Try src/assets path
+  if (!target.dataset.triedAssets && filename) {
+    target.dataset.triedAssets = 'true';
+    target.src = `/src/assets/images/${filename}`;
+    return;
+  }
+  // Final fallback to clean fresh grocery photo if file completely missing
+  target.src = 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=600&auto=format&fit=crop&q=80';
+};
+

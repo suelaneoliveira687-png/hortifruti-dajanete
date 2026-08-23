@@ -15,7 +15,7 @@ import {
 import { Order, OrderStatus, Product, StoreConfig, FirebaseCustomConfig } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_STORE_CONFIG, INITIAL_MOCK_ORDERS } from '../data/mockProducts';
 
-const SCHEMA_VERSION = 'v22_fix_all_missing_images_uva_pera_repolho_macaxeira_ovos';
+const SCHEMA_VERSION = 'v24_all_46_local_images_synced';
 
 const STORAGE_KEYS = {
   ORDERS: `janete_orders_${SCHEMA_VERSION}`,

@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { CartItem, DeliveryType, PaymentMethod, StoreConfig, Order } from '../types';
-import { formatCurrency, formatPhone, getWhatsAppLink } from '../utils/formatters';
+import { formatCurrency, formatPhone, getWhatsAppLink, resolveProductImageUrl, handleProductImageError } from '../utils/formatters';
 import { soundService } from '../services/soundService';
 
 interface CartDrawerProps {
@@ -453,11 +453,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       >
                         <div className="flex items-center gap-2.5 sm:gap-3">
                           <img
-                            src={item.product.image}
+                            src={resolveProductImageUrl(item.product.image)}
+                            data-original-src={item.product.image}
                             alt={item.product.name}
-                            onError={(e) => {
-                              e.currentTarget.src = 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=600&auto=format&fit=crop&q=80';
-                            }}
+                            onError={(e) => handleProductImageError(e, item.product.image)}
                             className="w-11 h-11 sm:w-12 sm:h-12 rounded-lg object-cover bg-stone-100 flex-shrink-0"
                           />
                           <div className="flex-1 min-w-0">
