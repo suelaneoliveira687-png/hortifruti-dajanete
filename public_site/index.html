@@ -881,39 +881,33 @@
   <!-- ================= SUPABASE CLIENT CONFIGURATION ================= -->
   <script>
     // -------------------------------------------------------------
-    // ⚡ CREDENCIAIS OFICIAIS DO SUPABASE
+    // ⚡ CREDENCIAIS OFICIAIS DO SUPABASE (ALINHADAS 100%)
     // -------------------------------------------------------------
     const SUPABASE_URL = "https://psfbutsevucdksmhttia.supabase.co";
     const SUPABASE_KEY = "sb_publishable_Yh4aq9mLbbgoOKymYxIIsw_AnCEyR-w";
-
-    let supabaseClient = null;
-    try {
-      if (window.supabase) {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      }
-    } catch (e) {
-      console.warn("Aviso ao conectar no Supabase:", e);
-    }
+    const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+    const supabaseClient = supabase;
 
     // Salvar pedido no Supabase com a estrutura exata solicitada e tratamento de erro rigoroso
     async function saveOrderToSupabase(orderData) {
       let savedId = null;
 
-      if (!supabaseClient) {
-        console.error('Erro detalhado do Supabase: Cliente Supabase não inicializado.');
-        alert('Ocorreu um erro ao enviar seu pedido. Tente novamente.');
-        throw new Error('Supabase client não está inicializado.');
+      if (!supabase) {
+        const errorMsg = 'Cliente Supabase não está inicializado.';
+        console.error('Erro detalhado do Supabase:', errorMsg);
+        alert(errorMsg);
+        throw new Error(errorMsg);
       }
 
       try {
-        const { data, error } = await supabaseClient
+        const { data, error } = await supabase
           .from('pedidos')
           .insert([orderData])
           .select();
 
         if (error) {
           console.error('Erro detalhado do Supabase:', error);
-          alert('Ocorreu um erro ao enviar seu pedido. Tente novamente.');
+          alert(error.message || 'Ocorreu um erro ao enviar seu pedido. Tente novamente.');
           throw error;
         }
 
@@ -923,7 +917,9 @@
         }
       } catch (err) {
         console.error('Erro detalhado do Supabase:', err);
-        alert('Ocorreu um erro ao enviar seu pedido. Tente novamente.');
+        if (!err.message?.includes('alerted')) {
+          alert(err.message || 'Ocorreu um erro ao enviar seu pedido. Tente novamente.');
+        }
         throw err;
       }
 

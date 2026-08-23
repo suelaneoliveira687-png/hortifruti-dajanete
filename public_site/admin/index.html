@@ -759,21 +759,13 @@
   <!-- ================= SUPABASE CLIENT CONFIGURATION ================= -->
   <script>
     // -------------------------------------------------------------
-    // ⚡ CREDENCIAIS OFICIAIS DO SUPABASE (MANTIDAS INTACTAS)
+    // ⚡ CREDENCIAIS OFICIAIS DO SUPABASE (ALINHADAS 100%)
     // -------------------------------------------------------------
     const SUPABASE_URL = "https://psfbutsevucdksmhttia.supabase.co";
     const SUPABASE_KEY = "sb_publishable_Yh4aq9mLbbgoOKymYxIIsw_AnCEyR-w";
-
-    let supabaseClient = null;
+    const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+    const supabaseClient = supabase;
     let realtimeChannel = null;
-
-    try {
-      if (window.supabase) {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      }
-    } catch (e) {
-      console.warn("Aviso ao conectar cliente Supabase no painel:", e);
-    }
   </script>
 
   <!-- ================= ALERTA SONORO NATIVO (WEB AUDIO API) ================= -->
@@ -945,7 +937,7 @@
     // ================= INICIALIZAÇÃO =================
     function initDashboard() {
       renderStatusFilters();
-      loadOrders();
+      carregarPedidos();
       loadDeliveryRatesAdmin();
       setupRealtimeListener();
       setupBroadcastListener();
@@ -953,11 +945,11 @@
 
     // ================= SUPABASE REALTIME LISTENER =================
     function setupRealtimeListener() {
-      if (!supabaseClient) return;
+      if (!supabase) return;
 
       try {
-        realtimeChannel = supabaseClient
-          .channel('janete-admin-realtime')
+        realtimeChannel = supabase
+          .channel('pedidos-channel')
           .on(
             'postgres_changes',
             { event: 'INSERT', schema: 'public', table: 'pedidos' },
@@ -966,7 +958,7 @@
               playNewOrderSound();
               const clienteNome = payload.new.cliente_nome || payload.new.nome || 'Cliente';
               showToast(`Novo pedido #${payload.new.id || ''} recebido de ${clienteNome}!`);
-              loadOrders(false);
+              carregarPedidos();
             }
           )
           .on(
@@ -974,7 +966,15 @@
             { event: 'UPDATE', schema: 'public', table: 'pedidos' },
             (payload) => {
               console.log('⚡ Pedido Atualizado via Supabase:', payload);
-              loadOrders(false);
+              carregarPedidos();
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: 'DELETE', schema: 'public', table: 'pedidos' },
+            (payload) => {
+              console.log('⚡ Pedido Excluído via Supabase:', payload);
+              carregarPedidos();
             }
           )
           .on(
@@ -987,7 +987,7 @@
           )
           .subscribe((status) => {
             const badge = document.getElementById('realtime-status-badge');
-            if (status === 'SUBSCRIBED') {
+            if (badge && status === 'SUBSCRIBED') {
               badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300';
               badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-600 pulse-glow"></span><span>🟢 Ao Vivo</span>';
             }
@@ -1007,7 +1007,7 @@
             playNewOrderSound();
             const clienteNome = event.data.order.cliente_nome || event.data.order.nome || 'Cliente';
             showToast(`Novo pedido de ${clienteNome}!`);
-            loadOrders(false);
+            carregarPedidos();
           } else if (event.data.type === 'ORDER_DELETED') {
             const deletedId = event.data.orderId;
             ordersList = ordersList.filter(o => String(o.id) !== String(deletedId));
@@ -1030,15 +1030,15 @@
     }
 
     // ================= CARREGAR PEDIDOS DO SUPABASE =================
-    async function loadOrders(showSpinner = false) {
+    async function carregarPedidos(showSpinner = false) {
       const refreshIcon = document.getElementById('refresh-icon');
       if (showSpinner && refreshIcon) refreshIcon.classList.add('animate-spin');
 
       let remoteOrders = [];
 
-      if (supabaseClient) {
+      if (supabase) {
         try {
-          const { data, error } = await supabaseClient
+          const { data, error } = await supabase
             .from('pedidos')
             .select('*')
             .order('created_at', { ascending: false });
@@ -1085,6 +1085,8 @@
         setTimeout(() => refreshIcon.classList.remove('animate-spin'), 600);
       }
     }
+
+    const loadOrders = carregarPedidos;
 
     // ================= ATUALIZAR STATUS DO PEDIDO (UPDATE) =================
     async function updateOrderStatus(orderId, newStatus) {
