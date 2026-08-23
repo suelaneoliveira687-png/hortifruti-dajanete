@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#166534">
   <title>Hortifruti da Janete | Peça Online pelo WhatsApp</title>
   <meta name="description" content="Frutas frescas, verduras selecionadas, legumes e temperos direto da horta para sua mesa com entrega rápida ou retirada no balcão.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥬</text></svg>">
@@ -892,26 +895,36 @@
       console.warn("Aviso ao conectar no Supabase:", e);
     }
 
-    // Salvar pedido no Supabase com a estrutura exata solicitada
+    // Salvar pedido no Supabase com a estrutura exata solicitada e tratamento de erro rigoroso
     async function saveOrderToSupabase(orderData) {
       let savedId = null;
 
-      if (supabaseClient) {
-        try {
-          const { data, error } = await supabaseClient
-            .from('pedidos')
-            .insert([orderData])
-            .select();
+      if (!supabaseClient) {
+        console.error('Erro detalhado do Supabase: Cliente Supabase não inicializado.');
+        alert('Ocorreu um erro ao enviar seu pedido. Tente novamente.');
+        throw new Error('Supabase client não está inicializado.');
+      }
 
-          if (error) {
-            console.warn("Aviso ao inserir no Supabase:", error.message);
-          } else if (data && data.length > 0) {
-            savedId = data[0].id;
-            console.log("✅ Pedido inserido no Supabase com ID:", savedId);
-          }
-        } catch (err) {
-          console.error("Erro na chamada do Supabase:", err);
+      try {
+        const { data, error } = await supabaseClient
+          .from('pedidos')
+          .insert([orderData])
+          .select();
+
+        if (error) {
+          console.error('Erro detalhado do Supabase:', error);
+          alert('Ocorreu um erro ao enviar seu pedido. Tente novamente.');
+          throw error;
         }
+
+        if (data && data.length > 0) {
+          savedId = data[0].id;
+          console.log("✅ Pedido gravado com sucesso no Supabase com ID:", savedId);
+        }
+      } catch (err) {
+        console.error('Erro detalhado do Supabase:', err);
+        alert('Ocorreu um erro ao enviar seu pedido. Tente novamente.');
+        throw err;
       }
 
       // Sincronização Local (Fallback & Broadcast para abas abertas)
@@ -1567,16 +1580,17 @@
 
       // -------------------------------------------------------------
       // ⚡ ESTRUTURA EXATA DO SUPABASE
+      // Colunas: cliente_nome, telefone, endereco, bairro, taxa_entrega, itens, total, status
       // -------------------------------------------------------------
       const orderPayload = {
         cliente_nome: name,
-        cliente_telefone: phone,
+        telefone: phone,
         endereco: addressString,
+        bairro: deliveryType === 'delivery' ? neighborhood : 'Retirada no Balcão',
+        taxa_entrega: Number(deliveryFee),
         itens: itensFormatados,
-        total: totalAmount,
-        pagamento: formaPagamentoFinal,
-        status: 'Pendente',
-        created_at: new Date().toISOString()
+        total: Number(totalAmount),
+        status: 'Pendente'
       };
 
       const btnSubmit = document.getElementById('btn-submit-order');
@@ -1645,7 +1659,8 @@
         }
 
       } catch (err) {
-        console.error("Erro ao enviar pedido:", err);
+        console.error("Erro detalhado do Supabase:", err);
+        return;
       } finally {
         btnSubmit.disabled = false;
         btnSubmit.innerHTML = `<i data-lucide="send" class="w-4 h-4"></i><span id="btn-submit-order-text">Enviar Pedido</span>`;

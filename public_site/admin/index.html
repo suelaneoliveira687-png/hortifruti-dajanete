@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#166534">
   <title>Painel de Pedidos & Financeiro - Hortifruti da Janete</title>
   <meta name="description" content="Painel de controle em tempo real para gerenciar pedidos e relatórios financeiros do Hortifruti da Janete com alertas sonoros, Chart.js e Supabase.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👑</text></svg>">
@@ -1040,14 +1043,16 @@
             .select('*')
             .order('created_at', { ascending: false });
 
-          if (!error && data) {
+          if (error) {
+            console.error("Erro detalhado ao buscar pedidos no Supabase:", error);
+          } else if (data) {
             remoteOrders = data;
-          } else if (error) {
-            console.warn("Aviso ao buscar pedidos no Supabase:", error.message);
           }
         } catch (err) {
-          console.warn("Fallback de busca:", err);
+          console.error("Erro detalhado ao buscar pedidos no Supabase:", err);
         }
+      } else {
+        console.warn("Cliente Supabase não inicializado no Admin.");
       }
 
       // Sincroniza com localStorage como salvaguarda
