@@ -881,21 +881,21 @@
   <!-- ================= SUPABASE CLIENT CONFIGURATION ================= -->
   <script>
     // -------------------------------------------------------------
-    // ⚡ CREDENCIAIS OFICIAIS DO SUPABASE (ALINHADAS 100%)
+    // ⚡ CREDENCIAIS OBRIGATÓRIAS DO SUPABASE
     // -------------------------------------------------------------
     const SUPABASE_URL = "https://psfbutsevucdksmhttia.supabase.co";
     const SUPABASE_KEY = "sb_publishable_Yh4aq9mLbbgoOKymYxIIsw_AnCEyR-w";
     const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
     const supabaseClient = supabase;
 
-    // Salvar pedido no Supabase com a estrutura exata solicitada e tratamento de erro rigoroso
+    // Salvar pedido no Supabase com a estrutura exata solicitada e tratamento de erro
     async function saveOrderToSupabase(orderData) {
       let savedId = null;
 
       if (!supabase) {
         const errorMsg = 'Cliente Supabase não está inicializado.';
-        console.error('Erro detalhado do Supabase:', errorMsg);
-        alert(errorMsg);
+        console.error(errorMsg);
+        alert('Erro ao enviar pedido: ' + errorMsg);
         throw new Error(errorMsg);
       }
 
@@ -906,8 +906,8 @@
           .select();
 
         if (error) {
-          console.error('Erro detalhado do Supabase:', error);
-          alert(error.message || 'Ocorreu um erro ao enviar seu pedido. Tente novamente.');
+          alert('Erro ao enviar pedido: ' + error.message);
+          console.error(error);
           throw error;
         }
 
@@ -916,9 +916,9 @@
           console.log("✅ Pedido gravado com sucesso no Supabase com ID:", savedId);
         }
       } catch (err) {
-        console.error('Erro detalhado do Supabase:', err);
-        if (!err.message?.includes('alerted')) {
-          alert(err.message || 'Ocorreu um erro ao enviar seu pedido. Tente novamente.');
+        if (!err.message?.includes('alerted') && !err.message?.includes('Erro ao enviar pedido:')) {
+          alert('Erro ao enviar pedido: ' + (err.message || 'Falha de conexão com o banco de dados.'));
+          console.error(err);
         }
         throw err;
       }
@@ -1583,9 +1583,9 @@
         telefone: phone,
         endereco: addressString,
         bairro: deliveryType === 'delivery' ? neighborhood : 'Retirada no Balcão',
-        taxa_entrega: Number(deliveryFee),
-        itens: itensFormatados,
-        total: Number(totalAmount),
+        taxa_entrega: parseFloat(deliveryFee),
+        itens: JSON.stringify(itensFormatados),
+        total: parseFloat(totalAmount),
         status: 'Pendente'
       };
 
