@@ -1576,12 +1576,13 @@
 
       // -------------------------------------------------------------
       // ⚡ ESTRUTURA EXATA DO SUPABASE
-      // Colunas: cliente_nome, telefone, endereco, bairro, taxa_entrega, itens, total, status
+      // Colunas: cliente_nome, telefone, endereco, forma_pagamento, bairro, taxa_entrega, itens, total, status
       // -------------------------------------------------------------
       const orderPayload = {
         cliente_nome: name,
         telefone: phone,
         endereco: addressString,
+        forma_pagamento: formaPagamentoFinal,
         bairro: deliveryType === 'delivery' ? neighborhood : 'Retirada no Balcão',
         taxa_entrega: parseFloat(deliveryFee),
         itens: JSON.stringify(itensFormatados),

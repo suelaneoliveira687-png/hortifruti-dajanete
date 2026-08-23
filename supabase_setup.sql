@@ -24,14 +24,15 @@ CREATE TABLE IF NOT EXISTS pedidos (
 );
 
 -- Garante compatibilidade de colunas caso a tabela já exista
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS cliente_nome TEXT;
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS telefone TEXT;
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS endereco TEXT;
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS forma_pagamento TEXT;
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS bairro TEXT;
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS taxa_entrega NUMERIC DEFAULT 0;
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS itens JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS total NUMERIC DEFAULT 0;
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Pendente';
-ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS cliente_nome TEXT;
 
 -- 2. Criação da tabela de TAXAS DE ENTREGA (por Bairro)
 CREATE TABLE IF NOT EXISTS taxas_entrega (
