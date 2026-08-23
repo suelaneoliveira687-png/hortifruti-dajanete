@@ -1645,6 +1645,13 @@
         // Preencher e exibir modal de confirmação / sucesso
         showSuccessModal(orderId, name, totalAmount);
 
+        // Abrir WhatsApp com a mensagem do pedido formatada
+        try {
+          window.open(pendingSuccessWhatsAppUrl, '_blank');
+        } catch (e) {
+          console.warn("Navegador bloqueou popup do WhatsApp, link disponível no modal:", e);
+        }
+
         // Confetes de comemoração
         if (typeof confetti === 'function') {
           confetti({
