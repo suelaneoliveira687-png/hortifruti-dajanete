@@ -1,0 +1,2189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Pedidos & Financeiro - Hortifruti da Janete</title>
+  <meta name="description" content="Painel de controle em tempo real para gerenciar pedidos e relatórios financeiros do Hortifruti da Janete com alertas sonoros, Chart.js e Supabase.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👑</text></svg>">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            heading: ['Outfit', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Chart.js CDN para Gráficos Financeiros -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Supabase JS Client v2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 0.3; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .pulse-glow { animation: pulse-ring 2s infinite ease-in-out; }
+    
+    @media print {
+      body * { visibility: hidden !important; }
+      #print-area, #print-area * { visibility: visible !important; }
+      #print-area { 
+        position: absolute; 
+        left: 0; 
+        top: 0; 
+        width: 100%; 
+        max-width: 320px; 
+        padding: 10px;
+        font-family: 'JetBrains Mono', monospace, Courier, monospace;
+        color: #000;
+        background: #fff;
+      }
+    }
+  </style>
+</head>
+<body class="bg-stone-100 text-stone-800 antialiased font-sans min-h-screen flex flex-col selection:bg-emerald-200 selection:text-emerald-900">
+
+  <!-- ================= 1. TELA DE AUTENTICAÇÃO (LOGIN) ================= -->
+  <div id="auth-screen" class="fixed inset-0 z-50 bg-stone-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl border border-stone-200 text-center space-y-5">
+      
+      <!-- Icone / Logo -->
+      <div class="w-16 h-16 bg-emerald-100 text-emerald-800 rounded-3xl mx-auto flex items-center justify-center text-3xl shadow-inner">
+        🥬
+      </div>
+
+      <div>
+        <h2 class="font-heading font-extrabold text-xl text-stone-900">Painel da Janete</h2>
+        <p class="text-xs text-stone-500 mt-1">Digite sua senha para acessar a gestão de pedidos e faturamento financeiro.</p>
+      </div>
+
+      <form id="auth-form" onsubmit="handleLogin(event)" class="space-y-4 text-left">
+        <div>
+          <label class="block text-xs font-bold text-stone-700 mb-1">Senha de Acesso:</label>
+          <input 
+            type="password" 
+            id="password-input" 
+            required 
+            autofocus
+            placeholder="Digite a senha"
+            class="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-2xl text-center text-base tracking-widest font-bold focus:ring-2 focus:ring-emerald-600 focus:bg-white transition outline-none"
+          />
+          <p id="auth-error" class="hidden text-xs text-red-600 font-bold mt-1.5 text-center">Senha incorreta. Tente novamente.</p>
+        </div>
+
+        <button 
+          type="submit" 
+          id="btn-login"
+          class="w-full py-3.5 bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white font-bold text-sm rounded-2xl shadow-lg shadow-emerald-800/20 transition flex items-center justify-center gap-2">
+          <i data-lucide="unlock" class="w-4 h-4"></i>
+          <span>Acessar Painel</span>
+        </button>
+
+        <p class="text-[11px] text-stone-400 text-center">Senha padrão: <strong class="text-stone-700">janete123</strong></p>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- ================= 2. PAINEL ADMINISTRATIVO ================= -->
+  <div id="admin-dashboard" class="hidden flex-1 flex flex-col">
+    
+    <!-- Topo / Navbar -->
+    <header class="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-xs">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+        
+        <!-- Titulo & Status Realtime -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-emerald-800 text-white flex items-center justify-center text-xl shadow-md">
+            🥬
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="font-heading font-extrabold text-base sm:text-lg text-stone-900 leading-tight">
+                Painel da Janete
+              </h1>
+              <span id="realtime-status-badge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <span class="w-2 h-2 rounded-full bg-emerald-600 pulse-glow"></span>
+                <span>🟢 Ao Vivo</span>
+              </span>
+            </div>
+            <p class="text-[11px] text-stone-500">Gestão de pedidos e controle financeiro integrado</p>
+          </div>
+        </div>
+
+        <!-- ABAS DE NAVEGAÇÃO: PEDIDOS vs TAXAS DE ENTREGA vs RELATÓRIO FINANCEIRO -->
+        <div class="flex items-center bg-stone-100 p-1 rounded-2xl border border-stone-200/80 text-xs font-bold shadow-inner">
+          <button 
+            id="tab-btn-orders" 
+            onclick="switchAdminTab('orders')"
+            class="flex items-center gap-1.5 px-3 py-2 rounded-xl transition cursor-pointer bg-white text-emerald-900 shadow-xs font-bold">
+            <i data-lucide="package" class="w-4 h-4 text-emerald-700"></i>
+            <span>Gestão de Pedidos</span>
+            <span id="nav-badge-pending" class="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-500 text-white">0</span>
+          </button>
+
+          <button 
+            id="tab-btn-rates" 
+            onclick="switchAdminTab('rates')"
+            class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-stone-600 hover:text-stone-900 transition cursor-pointer font-bold">
+            <i data-lucide="map-pin" class="w-4 h-4 text-stone-500"></i>
+            <span>Taxas de Entrega</span>
+            <span id="nav-badge-rates-count" class="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-black bg-stone-200 text-stone-700">0</span>
+          </button>
+
+          <button 
+            id="tab-btn-financial" 
+            onclick="switchAdminTab('financial')"
+            class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-stone-600 hover:text-stone-900 transition cursor-pointer font-bold">
+            <i data-lucide="bar-chart-3" class="w-4 h-4 text-stone-500"></i>
+            <span>Relatório Financeiro</span>
+          </button>
+        </div>
+
+        <!-- Botoes de Ação Rápida & Logout -->
+        <div class="flex items-center gap-2">
+          <!-- Teste Som -->
+          <button 
+            onclick="testSoundAlert()" 
+            title="Testar alerta sonoro" 
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold transition">
+            <i data-lucide="volume-2" class="w-3.5 h-3.5 text-amber-600"></i>
+            <span class="hidden sm:inline">Testar Som</span>
+          </button>
+
+          <!-- Atualizar Lista -->
+          <button 
+            onclick="loadOrders(true)" 
+            title="Recarregar dados" 
+            class="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition">
+            <i data-lucide="refresh-cw" class="w-4 h-4" id="refresh-icon"></i>
+          </button>
+
+          <!-- Ir para a Loja -->
+          <a 
+            href="../index.html" 
+            target="_blank" 
+            title="Abrir cardápio do cliente"
+            class="hidden md:inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-stone-200 text-xs font-bold text-stone-600 hover:text-emerald-700 hover:border-emerald-300 transition">
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            <span>Ver Cardápio</span>
+          </a>
+
+          <!-- Sair -->
+          <button 
+            onclick="handleLogout()" 
+            title="Sair do painel" 
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition">
+            <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+            <span>Sair</span>
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- ========================================================================= -->
+    <!-- ABA 1: GESTÃO DE PEDIDOS EM TEMPO REAL                                   -->
+    <!-- ========================================================================= -->
+    <div id="section-orders-view" class="flex-1 flex flex-col">
+      
+      <!-- Mini Dashboard de Vendas do Dia & Contadores de Pedidos -->
+      <section class="bg-gradient-to-b from-stone-50 to-stone-100 border-b border-stone-200 py-4 px-4 sm:px-6">
+        <div class="max-w-7xl mx-auto space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+            
+            <!-- Vendas de Hoje (Total do Dia) -->
+            <div class="col-span-1 sm:col-span-2 bg-gradient-to-br from-emerald-800 to-green-900 text-white p-4 rounded-2xl shadow-sm flex items-center justify-between">
+              <div class="space-y-1">
+                <span class="text-[11px] font-bold text-emerald-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                  Vendas de Hoje (Total do Dia)
+                </span>
+                <div class="flex items-baseline gap-2">
+                  <span id="metric-today-sales" class="font-heading font-black text-2xl sm:text-3xl text-white">R$ 0,00</span>
+                  <span id="metric-today-count" class="text-xs text-emerald-200 font-semibold">(0 pedidos hoje)</span>
+                </div>
+                <p class="text-[11px] text-emerald-100/80">Faturamento acumulado das vendas realizadas na data de hoje</p>
+              </div>
+              <div class="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-xs flex items-center justify-center text-emerald-200">
+                <i data-lucide="dollar-sign" class="w-6 h-6"></i>
+              </div>
+            </div>
+
+            <!-- Pedidos Pendentes (Atenção Imediata) -->
+            <div class="bg-gradient-to-br from-amber-500 to-amber-600 text-white p-4 rounded-2xl shadow-sm flex items-center justify-between">
+              <div class="space-y-1">
+                <span class="text-[11px] font-bold text-amber-100 uppercase tracking-wider flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-white pulse-glow"></span>
+                  Pedidos Pendentes
+                </span>
+                <div class="flex items-baseline gap-1.5">
+                  <span id="metric-pending" class="font-heading font-black text-2xl sm:text-3xl text-white">0</span>
+                  <span class="text-xs text-amber-100 font-bold">aguardando</span>
+                </div>
+                <p class="text-[11px] text-amber-100/90">Novos pedidos prontos para aprovação</p>
+              </div>
+              <div class="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center text-white">
+                <i data-lucide="clock" class="w-6 h-6"></i>
+              </div>
+            </div>
+
+            <!-- Em Preparo / Em Entrega -->
+            <div class="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs flex items-center justify-between">
+              <div class="space-y-1">
+                <span class="text-[10px] font-extrabold text-stone-400 uppercase tracking-wider flex items-center gap-1">
+                  <i data-lucide="truck" class="w-3.5 h-3.5 text-purple-600"></i> Em Andamento
+                </span>
+                <div class="flex items-baseline gap-2">
+                  <span id="metric-delivering" class="font-heading font-extrabold text-xl text-purple-700">0</span>
+                  <span class="text-[11px] text-stone-500 font-medium">em rota</span>
+                </div>
+                <p class="text-[10px] text-stone-400">Preparo: <strong id="metric-preparing" class="text-blue-600">0</strong> pedidos</p>
+              </div>
+              <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
+                <i data-lucide="bike" class="w-5 h-5"></i>
+              </div>
+            </div>
+
+            <!-- Concluídos & Total Geral -->
+            <div class="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs flex items-center justify-between">
+              <div class="space-y-1">
+                <span class="text-[10px] font-extrabold text-stone-400 uppercase tracking-wider flex items-center gap-1">
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600"></i> Concluídos
+                </span>
+                <div class="flex items-baseline gap-2">
+                  <span id="metric-completed" class="font-heading font-extrabold text-xl text-emerald-700">0</span>
+                  <span class="text-[11px] text-stone-500 font-medium">pedidos</span>
+                </div>
+                <p class="text-[10px] text-stone-400">Total histórico: <strong id="metric-total-revenue" class="text-stone-700">R$ 0,00</strong></p>
+              </div>
+              <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <i data-lucide="check-check" class="w-5 h-5"></i>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- Filtro por Status & Busca -->
+      <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-2 w-full">
+        <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-stone-200 shadow-xs">
+          
+          <!-- Tabs de Filtro de Status -->
+          <div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none" id="status-filter-tabs">
+            <!-- Injetado dinamicamente via JS -->
+          </div>
+
+          <!-- Campo de Busca -->
+          <div class="relative w-full md:w-80">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400"></i>
+            <input 
+              type="text" 
+              id="admin-search-input" 
+              oninput="handleSearch(this.value)"
+              placeholder="Buscar por cliente, telefone, endereço..."
+              class="w-full pl-10 pr-3.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-600 focus:bg-white outline-none transition"
+            />
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Grid de Cards dos Pedidos -->
+      <main class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex-1 w-full">
+        <div id="orders-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Cards injetados via JavaScript -->
+        </div>
+
+        <!-- Estado Vazio -->
+        <div id="empty-orders-state" class="hidden py-16 text-center">
+          <div class="w-16 h-16 bg-stone-200 rounded-full flex items-center justify-center mx-auto mb-3 text-3xl">
+            📦
+          </div>
+          <h3 class="font-bold text-stone-800 text-base">Nenhum pedido encontrado neste filtro</h3>
+          <p class="text-xs text-stone-500 max-w-sm mx-auto mt-1">
+            Assim que novos pedidos forem gerados pelo cardápio, eles tocarão um alerta sonoro e aparecerão aqui em tempo real.
+          </p>
+          <button onclick="setFilter('Todos')" class="mt-3 px-4 py-2 bg-emerald-700 text-white rounded-xl text-xs font-bold hover:bg-emerald-800 transition">
+            Ver Todos os Pedidos
+          </button>
+        </div>
+      </main>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ABA 2: GERENCIAR TAXAS DE ENTREGA (POR BAIRRO)                            -->
+    <!-- ========================================================================= -->
+    <div id="section-rates-view" class="hidden flex-1 flex flex-col py-6 px-4 sm:px-6 max-w-7xl mx-auto w-full space-y-6">
+      
+      <!-- Cabeçalho da Seção de Taxas -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-stone-200 shadow-xs">
+        <div>
+          <div class="flex items-center gap-2">
+            <div class="w-9 h-9 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-lg">
+              🛵
+            </div>
+            <h2 class="font-heading font-extrabold text-xl sm:text-2xl text-stone-900">
+              Gerenciar Taxas de Entrega
+            </h2>
+          </div>
+          <p class="text-xs text-stone-500 mt-1">
+            Cadastre os bairros atendidos e seus respectivos valores de frete para cálculo automático no checkout do cliente.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold text-stone-500">Total de Bairros:</span>
+          <span id="rates-count-badge" class="px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full font-heading font-black text-xs">
+            0 Bairros
+          </span>
+          <button 
+            onclick="loadDeliveryRatesAdmin(true)" 
+            title="Recarregar taxas do Supabase"
+            class="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer">
+            <i data-lucide="refresh-cw" class="w-4 h-4" id="rates-refresh-icon"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- CARD 1: FORMULÁRIO DE CADASTRO DE BAIRRO -->
+        <div class="lg:col-span-1 bg-white p-5 sm:p-6 rounded-3xl border border-stone-200 shadow-xs space-y-4 h-fit">
+          <div class="flex items-center gap-2 border-b border-stone-100 pb-3">
+            <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+              <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 class="font-heading font-extrabold text-stone-900 text-sm sm:text-base">Adicionar Novo Bairro</h3>
+              <p class="text-[11px] text-stone-400">Preencha o nome e o valor da entrega</p>
+            </div>
+          </div>
+
+          <form id="form-add-rate" onsubmit="addDeliveryRate(event);" class="space-y-3.5 text-xs">
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Nome do Bairro *</label>
+              <div class="relative">
+                <i data-lucide="map-pin" class="w-4 h-4 text-stone-400 absolute left-3 top-3"></i>
+                <input 
+                  type="text" 
+                  id="new-rate-bairro" 
+                  required 
+                  placeholder="Ex: Centro, Jardim Primavera..." 
+                  class="w-full pl-9 pr-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:bg-white transition text-xs font-semibold text-stone-800 outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label class="block font-bold text-stone-700 mb-1">Valor da Taxa (R$) *</label>
+              <div class="relative">
+                <span class="text-xs font-bold text-stone-400 absolute left-3 top-2.5">R$</span>
+                <input 
+                  type="number" 
+                  step="0.50" 
+                  min="0" 
+                  id="new-rate-valor" 
+                  required 
+                  placeholder="Ex: 5.00" 
+                  class="w-full pl-9 pr-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:bg-white transition text-xs font-semibold text-stone-800 outline-none"
+                />
+              </div>
+              <p class="text-[10px] text-stone-400 mt-1">Dica: Digite 0 para entrega grátis no bairro.</p>
+            </div>
+
+            <button 
+              type="submit" 
+              id="btn-add-rate"
+              class="w-full min-h-[42px] py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-700/20 flex items-center justify-center gap-1.5 transition cursor-pointer touch-manipulation">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>Adicionar Bairro</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- CARD 2: TABELA DE BAIRROS E TAXAS CADASTRADAS -->
+        <div class="lg:col-span-2 bg-white p-5 sm:p-6 rounded-3xl border border-stone-200 shadow-xs space-y-4">
+          
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-3">
+            <div>
+              <h3 class="font-heading font-extrabold text-stone-900 text-sm sm:text-base flex items-center gap-2">
+                <i data-lucide="list" class="w-4 h-4 text-emerald-700"></i>
+                Bairros Atendidos e Valores Cadastrados
+              </h3>
+              <p class="text-[11px] text-stone-400">Estes bairros serão exibidos no dropdown de checkout do cliente</p>
+            </div>
+
+            <!-- Busca de Bairro -->
+            <div class="relative min-w-[200px]">
+              <i data-lucide="search" class="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5"></i>
+              <input 
+                type="text" 
+                id="search-rate-input" 
+                oninput="filterRatesList(this.value)" 
+                placeholder="Buscar bairro..." 
+                class="w-full pl-8 pr-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-800 focus:ring-2 focus:ring-emerald-600 outline-none"
+              />
+            </div>
+          </div>
+
+          <!-- Tabela Responsiva -->
+          <div class="overflow-x-auto rounded-2xl border border-stone-200">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-stone-50 text-stone-600 font-extrabold uppercase tracking-wider border-b border-stone-200">
+                <tr>
+                  <th class="py-3 px-4">Bairro</th>
+                  <th class="py-3 px-4">Taxa de Entrega</th>
+                  <th class="py-3 px-4 text-center">Status</th>
+                  <th class="py-3 px-4 text-right">Ação</th>
+                </tr>
+              </thead>
+              <tbody id="delivery-rates-table-body" class="divide-y divide-stone-100 bg-white font-medium">
+                <!-- Linhas inseridas via JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Empty State -->
+          <div id="rates-empty-state" class="hidden py-12 text-center">
+            <div class="w-14 h-14 bg-stone-100 rounded-2xl flex items-center justify-center mx-auto mb-2 text-2xl">
+              📍
+            </div>
+            <h4 class="font-bold text-stone-800 text-sm">Nenhum bairro cadastrado</h4>
+            <p class="text-xs text-stone-400 max-w-xs mx-auto mt-1">
+              Utilize o formulário ao lado para cadastrar seu primeiro bairro e definir o valor da entrega.
+            </p>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ABA 3: RELATÓRIO FINANCEIRO E FATURAMENTO                                 -->
+    <!-- ========================================================================= -->
+    <div id="section-financial-view" class="hidden flex-1 flex flex-col py-6 px-4 sm:px-6 max-w-7xl mx-auto w-full space-y-6">
+      
+      <!-- Cabeçalho da Seção Financeira & Filtro de Status de Cálculo -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-stone-200 shadow-xs">
+        <div>
+          <div class="flex items-center gap-2">
+            <div class="w-9 h-9 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-lg">
+              💰
+            </div>
+            <h2 class="font-heading font-extrabold text-xl sm:text-2xl text-stone-900">
+              Relatório Financeiro e Faturamento
+            </h2>
+          </div>
+          <p class="text-xs text-stone-500 mt-1">
+            Acompanhe o faturamento em tempo real, métricas semanais, mensais e histórico detalhado por data.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-bold text-stone-600 whitespace-nowrap">Base de Cálculo:</label>
+          <select 
+            id="financial-status-filter" 
+            onchange="renderFinancialReport()"
+            class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold text-stone-800 focus:ring-2 focus:ring-emerald-600 outline-none transition cursor-pointer">
+            <option value="concluded" selected>Apenas Pedidos Concluídos (Recomendado)</option>
+            <option value="all_active">Todos os Pedidos (Pendentes + Em Andamento + Concluídos)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 1. DASHBOARD DE CARDS (TOPO) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <!-- Card 1: Faturamento de Hoje (R$) -->
+        <div class="bg-gradient-to-br from-emerald-800 to-green-950 text-white p-5 rounded-3xl shadow-sm flex flex-col justify-between space-y-3 relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-emerald-200 uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="sun" class="w-4 h-4 text-amber-300"></i> Faturamento de Hoje
+            </span>
+            <span class="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-emerald-200 text-sm font-bold">
+              1D
+            </span>
+          </div>
+          <div>
+            <h3 id="fin-card-today-value" class="font-heading font-black text-2xl sm:text-3xl text-white">R$ 0,00</h3>
+            <p id="fin-card-today-count" class="text-xs text-emerald-200 mt-1 font-semibold">0 vendas registradas hoje</p>
+          </div>
+          <div class="pt-2 border-t border-emerald-700/50 flex items-center justify-between text-[11px] text-emerald-200/80">
+            <span>Data de hoje:</span>
+            <strong id="fin-card-today-date" class="font-mono text-white">--/--/----</strong>
+          </div>
+        </div>
+
+        <!-- Card 2: Faturamento dos Últimos 7 Dias (R$) -->
+        <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-xs flex flex-col justify-between space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold text-stone-500 uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="calendar-days" class="w-4 h-4 text-blue-600"></i> Últimos 7 Dias
+            </span>
+            <span class="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center text-xs font-black">
+              7D
+            </span>
+          </div>
+          <div>
+            <h3 id="fin-card-7days-value" class="font-heading font-black text-2xl sm:text-3xl text-blue-900">R$ 0,00</h3>
+            <p id="fin-card-7days-count" class="text-xs text-stone-500 mt-1 font-medium">0 pedidos nos últimos 7 dias</p>
+          </div>
+          <div class="pt-2 border-t border-stone-100 flex items-center justify-between text-[11px] text-stone-500">
+            <span>Média diária (7d):</span>
+            <strong id="fin-card-7days-avg" class="font-bold text-stone-800">R$ 0,00 / dia</strong>
+          </div>
+        </div>
+
+        <!-- Card 3: Faturamento do Mês Atual (R$) -->
+        <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-xs flex flex-col justify-between space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold text-stone-500 uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="trending-up" class="w-4 h-4 text-purple-600"></i> Faturamento do Mês
+            </span>
+            <span class="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center text-xs font-black">
+              MÊS
+            </span>
+          </div>
+          <div>
+            <h3 id="fin-card-month-value" class="font-heading font-black text-2xl sm:text-3xl text-purple-950">R$ 0,00</h3>
+            <p id="fin-card-month-label" class="text-xs text-stone-500 mt-1 font-medium">Faturamento acumulado do mês</p>
+          </div>
+          <div class="pt-2 border-t border-stone-100 flex items-center justify-between text-[11px] text-stone-500">
+            <span>Mês de referência:</span>
+            <strong id="fin-card-month-name" class="font-bold text-stone-800 uppercase">Agosto</strong>
+          </div>
+        </div>
+
+        <!-- Card 4: Total de Pedidos Concluídos -->
+        <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-xs flex flex-col justify-between space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold text-stone-500 uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="check-check" class="w-4 h-4 text-emerald-600"></i> Total Concluídos
+            </span>
+            <span class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-xs font-black">
+              TOTAL
+            </span>
+          </div>
+          <div>
+            <h3 id="fin-card-completed-count" class="font-heading font-black text-2xl sm:text-3xl text-emerald-800">0</h3>
+            <p id="fin-card-total-revenue" class="text-xs text-stone-500 mt-1 font-medium">R$ 0,00 faturados no histórico</p>
+          </div>
+          <div class="pt-2 border-t border-stone-100 flex items-center justify-between text-[11px] text-stone-500">
+            <span>Ticket Médio por Pedido:</span>
+            <strong id="fin-card-avg-ticket" class="font-bold text-emerald-700">R$ 0,00</strong>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 3. GRÁFICO VISUAL (CHART.JS) - FATURAMENTO DIÁRIO DA ÚLTIMA SEMANA -->
+      <div class="bg-white p-5 sm:p-6 rounded-3xl border border-stone-200 shadow-xs space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 class="font-heading font-extrabold text-base sm:text-lg text-stone-900 flex items-center gap-2">
+              <i data-lucide="bar-chart-2" class="w-5 h-5 text-emerald-700"></i>
+              Faturamento Diário da Última Semana (Últimos 7 Dias)
+            </h3>
+            <p class="text-xs text-stone-500">Evolução do faturamento diário para análise de vendas</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold">
+              <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+              Vendas Diárias (R$)
+            </span>
+          </div>
+        </div>
+
+        <!-- Canvas do Chart.js -->
+        <div class="relative h-64 sm:h-72 w-full pt-2">
+          <canvas id="financial-weekly-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- 2. HISTÓRICO POR DATA COM SELETOR DE DATA E TABELA -->
+      <div class="bg-white p-5 sm:p-6 rounded-3xl border border-stone-200 shadow-xs space-y-5">
+        
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-4">
+          <div>
+            <h3 class="font-heading font-extrabold text-base sm:text-lg text-stone-900 flex items-center gap-2">
+              <i data-lucide="calendar" class="w-5 h-5 text-emerald-700"></i>
+              Histórico de Faturamento por Data
+            </h3>
+            <p class="text-xs text-stone-500">Selecione uma data específica para detalhar o faturamento ou consulte a tabela completa abaixo.</p>
+          </div>
+
+          <!-- Seletor de Data -->
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="flex items-center gap-1.5 bg-stone-50 p-1.5 rounded-2xl border border-stone-200">
+              <label for="financial-date-picker" class="text-xs font-bold text-stone-600 pl-2">Consultar Data:</label>
+              <input 
+                type="date" 
+                id="financial-date-picker" 
+                onchange="handleDateFilterChange(this.value)"
+                class="px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs font-bold text-stone-800 focus:ring-2 focus:ring-emerald-600 outline-none cursor-pointer"
+              />
+              <button 
+                onclick="setFinancialDateToday()" 
+                class="px-2.5 py-1.5 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded-xl text-xs font-bold transition">
+                Hoje
+              </button>
+              <button 
+                onclick="clearFinancialDateFilter()" 
+                title="Limpar filtro de data e ver todos os dias"
+                class="px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-xl text-xs font-bold transition">
+                Limpar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Box de Destaque da Data Selecionada (se filtrada) -->
+        <div id="financial-date-detail-box" class="hidden p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-emerald-700 text-white flex items-center justify-center font-bold text-lg">
+              📅
+            </div>
+            <div>
+              <span class="text-xs font-extrabold text-emerald-800 uppercase tracking-wide">Faturamento da Data Selecionada</span>
+              <h4 id="fin-selected-date-title" class="font-heading font-black text-stone-900 text-base sm:text-lg">--</h4>
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="text-right sm:text-right">
+              <span class="text-[11px] text-stone-500 block font-medium">Total de Pedidos:</span>
+              <strong id="fin-selected-date-orders-count" class="font-bold text-stone-800 text-sm">0</strong>
+            </div>
+            <div class="text-right sm:text-right pl-4 border-l border-emerald-200">
+              <span class="text-[11px] text-emerald-800 block font-bold">Faturamento Total:</span>
+              <strong id="fin-selected-date-revenue" class="font-heading font-black text-emerald-900 text-xl">R$ 0,00</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabela de Histórico Diário de Vendas -->
+        <div class="overflow-x-auto rounded-2xl border border-stone-200">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-stone-50 text-stone-600 font-extrabold uppercase tracking-wider border-b border-stone-200">
+              <tr>
+                <th class="py-3 px-4">Data</th>
+                <th class="py-3 px-4">Dia da Semana</th>
+                <th class="py-3 px-4 text-center">Qtd. Pedidos</th>
+                <th class="py-3 px-4 text-right">Ticket Médio</th>
+                <th class="py-3 px-4 text-right">Faturamento do Dia</th>
+                <th class="py-3 px-4 text-center">Status Mais Frequente</th>
+              </tr>
+            </thead>
+            <tbody id="financial-days-table-body" class="divide-y divide-stone-100 bg-white font-medium">
+              <!-- Linhas preenchidas via JavaScript -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Estado Vazio da Tabela -->
+        <div id="financial-empty-table" class="hidden py-8 text-center text-stone-400 text-xs">
+          Nenhum faturamento registrado para os critérios selecionados.
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Rodapé -->
+    <footer class="bg-white border-t border-stone-200 py-3.5 text-center text-xs text-stone-400">
+      Hortifruti da Janete • Sistema de Delivery e Gestão Financeira em Tempo Real
+    </footer>
+
+  </div>
+
+  <!-- Modal de Confirmação de Exclusão de Pedido -->
+  <div id="delete-confirm-modal" class="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl border border-stone-200 text-center space-y-4 animate-in fade-in zoom-in-95 duration-150">
+      <div class="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl shadow-inner">
+        <i data-lucide="trash-2" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <h3 class="font-heading font-extrabold text-lg text-stone-900">Excluir Pedido?</h3>
+        <p id="delete-modal-text" class="text-xs text-stone-500 mt-1 font-medium leading-relaxed">
+          Tem certeza que deseja excluir este pedido? Ele será removido permanentemente da lista.
+        </p>
+      </div>
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button 
+          type="button" 
+          onclick="closeDeleteModal()" 
+          class="min-h-[42px] py-2.5 px-4 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs rounded-2xl transition cursor-pointer touch-manipulation">
+          Cancelar
+        </button>
+        <button 
+          type="button" 
+          onclick="executeDeleteConfirmed()" 
+          class="min-h-[42px] py-2.5 px-4 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-extrabold text-xs rounded-2xl shadow-md shadow-red-600/25 transition cursor-pointer touch-manipulation">
+          Sim, Excluir
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Area para Impressão de Cupom Térmico / Sacola -->
+  <div id="print-area" class="hidden"></div>
+
+  <!-- ================= SUPABASE CLIENT CONFIGURATION ================= -->
+  <script>
+    // -------------------------------------------------------------
+    // ⚡ CREDENCIAIS OFICIAIS DO SUPABASE (MANTIDAS INTACTAS)
+    // -------------------------------------------------------------
+    const SUPABASE_URL = "https://psfbutsevucdksmhttia.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_Yh4aq9mLbbgoOKymYxIIsw_AnCEyR-w";
+
+    let supabaseClient = null;
+    let realtimeChannel = null;
+
+    try {
+      if (window.supabase) {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      }
+    } catch (e) {
+      console.warn("Aviso ao conectar cliente Supabase no painel:", e);
+    }
+  </script>
+
+  <!-- ================= ALERTA SONORO NATIVO (WEB AUDIO API) ================= -->
+  <script>
+    let audioContext = null;
+
+    function playNewOrderSound() {
+      try {
+        if (!audioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+
+        const now = audioContext.currentTime;
+
+        // Beep 1 (Tom Agudo Suave)
+        const osc1 = audioContext.createOscillator();
+        const gain1 = audioContext.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(880, now); // Nota A5
+        osc1.frequency.exponentialRampToValueAtTime(1320, now + 0.15);
+        gain1.gain.setValueAtTime(0.3, now);
+        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+        osc1.connect(gain1);
+        gain1.connect(audioContext.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.3);
+
+        // Beep 2 (Chime de Confirmação)
+        const osc2 = audioContext.createOscillator();
+        const gain2 = audioContext.createGain();
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(1760, now + 0.18); // Nota A6
+        gain2.gain.setValueAtTime(0.25, now + 0.18);
+        gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+
+        osc2.connect(gain2);
+        gain2.connect(audioContext.destination);
+        osc2.start(now + 0.18);
+        osc2.stop(now + 0.6);
+
+      } catch (err) {
+        console.warn("Não foi possível reproduzir som de notificação:", err);
+      }
+    }
+
+    function testSoundAlert() {
+      playNewOrderSound();
+    }
+  </script>
+
+  <!-- ================= LÓGICA DO PAINEL DA JANETE & RELATÓRIOS ================= -->
+  <script>
+    const ADMIN_PASSWORD = "janete123";
+    
+    // Status suportados para filtros e ciclo de vida
+    const STATUS_OPTIONS = [
+      { key: 'Todos', label: 'Todos', icon: '📋' },
+      { key: 'Pendente', label: 'Pendentes', icon: '⏳' },
+      { key: 'Em Preparo', label: 'Em Preparo', icon: '👨‍🍳' },
+      { key: 'Saiu para Entrega', label: 'Em Entrega', icon: '🛵' },
+      { key: 'Concluído', label: 'Concluídos', icon: '✅' }
+    ];
+
+    let ordersList = [];
+    let activeFilter = 'Todos';
+    let filterQuery = '';
+    let currentAdminTab = 'orders'; // 'orders' | 'rates' | 'financial'
+    let financialChartInstance = null;
+    let selectedFinancialDate = null; // 'YYYY-MM-DD' ou null
+
+    // Taxas de Entrega
+    let deliveryRatesList = [];
+    let ratesFilterQuery = '';
+
+    // ================= AUTENTICAÇÃO =================
+    function checkAuthentication() {
+      const isAuth = sessionStorage.getItem('janete_auth_session') === 'true';
+      const authScreen = document.getElementById('auth-screen');
+      const adminDashboard = document.getElementById('admin-dashboard');
+
+      if (isAuth) {
+        authScreen.classList.add('hidden');
+        adminDashboard.classList.remove('hidden');
+        initDashboard();
+      } else {
+        authScreen.classList.remove('hidden');
+        adminDashboard.classList.add('hidden');
+      }
+    }
+
+    function handleLogin(event) {
+      event.preventDefault();
+      const pwdInput = document.getElementById('password-input');
+      const authErr = document.getElementById('auth-error');
+
+      if (pwdInput.value.trim() === ADMIN_PASSWORD) {
+        sessionStorage.setItem('janete_auth_session', 'true');
+        authErr.classList.add('hidden');
+        checkAuthentication();
+        
+        // Destravar AudioContext por ação do usuário
+        try {
+          if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          audioContext.resume();
+        } catch (e) {}
+      } else {
+        authErr.classList.remove('hidden');
+        pwdInput.value = '';
+        pwdInput.focus();
+      }
+    }
+
+    function handleLogout() {
+      sessionStorage.removeItem('janete_auth_session');
+      if (realtimeChannel) {
+        realtimeChannel.unsubscribe();
+      }
+      location.reload();
+    }
+
+    // ================= CONTROLE DE ABAS (PEDIDOS VS TAXAS VS FINANCEIRO) =================
+    function switchAdminTab(tab) {
+      currentAdminTab = tab;
+      const tabOrders = document.getElementById('tab-btn-orders');
+      const tabRates = document.getElementById('tab-btn-rates');
+      const tabFinancial = document.getElementById('tab-btn-financial');
+      
+      const sectionOrders = document.getElementById('section-orders-view');
+      const sectionRates = document.getElementById('section-rates-view');
+      const sectionFinancial = document.getElementById('section-financial-view');
+
+      const activeClass = 'flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition cursor-pointer bg-white text-emerald-900 shadow-xs font-bold';
+      const inactiveClass = 'flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-stone-600 hover:text-stone-900 transition cursor-pointer font-bold';
+
+      if (tab === 'orders') {
+        tabOrders.className = activeClass;
+        if (tabRates) tabRates.className = inactiveClass;
+        tabFinancial.className = inactiveClass;
+
+        sectionOrders.classList.remove('hidden');
+        if (sectionRates) sectionRates.classList.add('hidden');
+        sectionFinancial.classList.add('hidden');
+      } else if (tab === 'rates') {
+        if (tabRates) tabRates.className = activeClass;
+        tabOrders.className = inactiveClass;
+        tabFinancial.className = inactiveClass;
+
+        if (sectionRates) sectionRates.classList.remove('hidden');
+        sectionOrders.classList.add('hidden');
+        sectionFinancial.classList.add('hidden');
+        loadDeliveryRatesAdmin();
+      } else {
+        tabFinancial.className = activeClass;
+        tabOrders.className = inactiveClass;
+        if (tabRates) tabRates.className = inactiveClass;
+
+        sectionFinancial.classList.remove('hidden');
+        sectionOrders.classList.add('hidden');
+        if (sectionRates) sectionRates.classList.add('hidden');
+        renderFinancialReport();
+      }
+      lucide.createIcons();
+    }
+
+    // ================= INICIALIZAÇÃO =================
+    function initDashboard() {
+      renderStatusFilters();
+      loadOrders();
+      loadDeliveryRatesAdmin();
+      setupRealtimeListener();
+      setupBroadcastListener();
+    }
+
+    // ================= SUPABASE REALTIME LISTENER =================
+    function setupRealtimeListener() {
+      if (!supabaseClient) return;
+
+      try {
+        realtimeChannel = supabaseClient
+          .channel('janete-admin-realtime')
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'pedidos' },
+            (payload) => {
+              console.log('⚡ Novo Pedido via Realtime Supabase:', payload);
+              playNewOrderSound();
+              const clienteNome = payload.new.cliente_nome || payload.new.nome || 'Cliente';
+              showToast(`Novo pedido #${payload.new.id || ''} recebido de ${clienteNome}!`);
+              loadOrders(false);
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'pedidos' },
+            (payload) => {
+              console.log('⚡ Pedido Atualizado via Supabase:', payload);
+              loadOrders(false);
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'taxas_entrega' },
+            (payload) => {
+              console.log('⚡ Alteração em taxas_entrega via Supabase:', payload);
+              loadDeliveryRatesAdmin(false);
+            }
+          )
+          .subscribe((status) => {
+            const badge = document.getElementById('realtime-status-badge');
+            if (status === 'SUBSCRIBED') {
+              badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300';
+              badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-600 pulse-glow"></span><span>🟢 Ao Vivo</span>';
+            }
+          });
+      } catch (err) {
+        console.error("Erro ao assinar canal realtime do Supabase:", err);
+      }
+    }
+
+    // BroadcastChannel para sincronização instantânea entre abas no mesmo navegador
+    function setupBroadcastListener() {
+      try {
+        const channel = new BroadcastChannel('janete_orders_channel');
+        channel.onmessage = (event) => {
+          if (!event.data) return;
+          if (event.data.type === 'NEW_ORDER') {
+            playNewOrderSound();
+            const clienteNome = event.data.order.cliente_nome || event.data.order.nome || 'Cliente';
+            showToast(`Novo pedido de ${clienteNome}!`);
+            loadOrders(false);
+          } else if (event.data.type === 'ORDER_DELETED') {
+            const deletedId = event.data.orderId;
+            ordersList = ordersList.filter(o => String(o.id) !== String(deletedId));
+            updateMetrics();
+            renderStatusFilters();
+            renderOrders();
+            if (currentAdminTab === 'financial') renderFinancialReport();
+          } else if (event.data.type === 'STATUS_UPDATE') {
+            const idx = ordersList.findIndex(o => String(o.id) === String(event.data.orderId));
+            if (idx !== -1) {
+              ordersList[idx].status = event.data.status;
+              updateMetrics();
+              renderStatusFilters();
+              renderOrders();
+              if (currentAdminTab === 'financial') renderFinancialReport();
+            }
+          }
+        };
+      } catch (e) {}
+    }
+
+    // ================= CARREGAR PEDIDOS DO SUPABASE =================
+    async function loadOrders(showSpinner = false) {
+      const refreshIcon = document.getElementById('refresh-icon');
+      if (showSpinner && refreshIcon) refreshIcon.classList.add('animate-spin');
+
+      let remoteOrders = [];
+
+      if (supabaseClient) {
+        try {
+          const { data, error } = await supabaseClient
+            .from('pedidos')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (!error && data) {
+            remoteOrders = data;
+          } else if (error) {
+            console.warn("Aviso ao buscar pedidos no Supabase:", error.message);
+          }
+        } catch (err) {
+          console.warn("Fallback de busca:", err);
+        }
+      }
+
+      // Sincroniza com localStorage como salvaguarda
+      const localOrders = JSON.parse(localStorage.getItem('janete_orders_v1') || '[]');
+      const orderMap = new Map();
+
+      remoteOrders.forEach(o => orderMap.set(String(o.id), o));
+      localOrders.forEach(o => {
+        if (!orderMap.has(String(o.id))) orderMap.set(String(o.id), o);
+      });
+
+      ordersList = Array.from(orderMap.values());
+
+      // Ordenar por data mais recente
+      ordersList.sort((a, b) => {
+        const timeA = new Date(a.created_at || a.createdAt || 0).getTime();
+        const timeB = new Date(b.created_at || b.createdAt || 0).getTime();
+        return timeB - timeA;
+      });
+
+      updateMetrics();
+      renderStatusFilters();
+      renderOrders();
+
+      if (currentAdminTab === 'financial') {
+        renderFinancialReport();
+      }
+
+      if (showSpinner && refreshIcon) {
+        setTimeout(() => refreshIcon.classList.remove('animate-spin'), 600);
+      }
+    }
+
+    // ================= ATUALIZAR STATUS DO PEDIDO (UPDATE) =================
+    async function updateOrderStatus(orderId, newStatus) {
+      // 1. Atualização Otimista na Memória
+      const idx = ordersList.findIndex(o => String(o.id) === String(orderId));
+      if (idx !== -1) {
+        ordersList[idx].status = newStatus;
+        updateMetrics();
+        renderStatusFilters();
+        renderOrders();
+        if (currentAdminTab === 'financial') renderFinancialReport();
+      }
+
+      // 2. Atualizar no LocalStorage e Notificar Abas
+      const localOrders = JSON.parse(localStorage.getItem('janete_orders_v1') || '[]');
+      const localIdx = localOrders.findIndex(o => String(o.id) === String(orderId));
+      if (localIdx !== -1) {
+        localOrders[localIdx].status = newStatus;
+        localStorage.setItem('janete_orders_v1', JSON.stringify(localOrders));
+      }
+
+      try {
+        const channel = new BroadcastChannel('janete_orders_channel');
+        channel.postMessage({ type: 'STATUS_UPDATE', orderId, status: newStatus });
+      } catch (e) {}
+
+      // 3. Atualizar no Supabase
+      if (supabaseClient) {
+        try {
+          const { error } = await supabaseClient
+            .from('pedidos')
+            .update({ status: newStatus })
+            .eq('id', orderId);
+
+          if (error) {
+            console.warn("Aviso ao atualizar no Supabase:", error.message);
+          } else {
+            console.log(`✅ Status do pedido #${orderId} atualizado para "${newStatus}" com sucesso!`);
+          }
+        } catch (err) {
+          console.error("Erro na atualização do status:", err);
+        }
+      }
+    }
+
+    // ================= GERENCIAMENTO DE EXCLUSÃO DE PEDIDOS (DELETE) =================
+    let orderIdToDelete = null;
+
+    function promptDeleteOrder(orderId) {
+      orderIdToDelete = orderId;
+      const modal = document.getElementById('delete-confirm-modal');
+      const modalText = document.getElementById('delete-modal-text');
+      if (modalText) {
+        modalText.textContent = `Tem certeza que deseja excluir o pedido #${orderId}? Esta ação removerá o pedido definitivamente da lista.`;
+      }
+      if (modal) {
+        modal.classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+      }
+    }
+
+    function closeDeleteModal() {
+      orderIdToDelete = null;
+      const modal = document.getElementById('delete-confirm-modal');
+      if (modal) {
+        modal.classList.add('hidden');
+      }
+    }
+
+    async function executeDeleteConfirmed() {
+      if (!orderIdToDelete) return;
+      const id = orderIdToDelete;
+      closeDeleteModal();
+      await deleteOrder(id);
+    }
+
+    async function deleteOrder(orderId) {
+      // 1. Atualização Otimista na Memória
+      ordersList = ordersList.filter(o => String(o.id) !== String(orderId));
+      updateMetrics();
+      renderStatusFilters();
+      renderOrders();
+      if (currentAdminTab === 'financial') renderFinancialReport();
+      showToast(`Pedido #${orderId} excluído com sucesso!`);
+
+      // 2. Atualizar no LocalStorage
+      try {
+        const localOrders = JSON.parse(localStorage.getItem('janete_orders_v1') || '[]');
+        const updatedLocal = localOrders.filter(o => String(o.id) !== String(orderId));
+        localStorage.setItem('janete_orders_v1', JSON.stringify(updatedLocal));
+        localStorage.setItem('janete_orders_cache', JSON.stringify(updatedLocal));
+      } catch (e) {}
+
+      // 3. Notificar outras abas via BroadcastChannel
+      try {
+        const channel = new BroadcastChannel('janete_orders_channel');
+        channel.postMessage({ type: 'ORDER_DELETED', orderId });
+      } catch (e) {}
+
+      // 4. Excluir no Supabase
+      if (supabaseClient) {
+        try {
+          const { error } = await supabaseClient
+            .from('pedidos')
+            .delete()
+            .eq('id', orderId);
+
+          if (error) {
+            console.warn("Aviso ao excluir no Supabase:", error.message);
+          } else {
+            console.log(`✅ Pedido #${orderId} excluído no Supabase com sucesso.`);
+          }
+        } catch (err) {
+          console.error("Erro ao excluir pedido no Supabase:", err);
+        }
+      }
+    }
+
+    // ================= CÁLCULO DE MÉTRICAS DO MINI DASHBOARD =================
+    function parseOrderDate(order) {
+      const dateStr = order.created_at || order.createdAt;
+      if (!dateStr) return new Date();
+      return new Date(dateStr);
+    }
+
+    function isSameDay(d1, d2) {
+      return d1.getFullYear() === d2.getFullYear() &&
+             d1.getMonth() === d2.getMonth() &&
+             d1.getDate() === d2.getDate();
+    }
+
+    function updateMetrics() {
+      const today = new Date();
+      const todayOrders = ordersList.filter(o => isSameDay(parseOrderDate(o), today));
+      const todaySales = todayOrders.reduce((acc, o) => acc + Number(o.total || o.valor_total || 0), 0);
+
+      const pendingCount = ordersList.filter(o => (o.status || 'Pendente') === 'Pendente').length;
+      const preparingCount = ordersList.filter(o => o.status === 'Em Preparo').length;
+      const deliveringCount = ordersList.filter(o => o.status === 'Saiu para Entrega' || o.status === 'Em Entrega').length;
+      const completedCount = ordersList.filter(o => o.status === 'Concluído').length;
+      const totalRevenue = ordersList.reduce((acc, o) => acc + Number(o.total || o.valor_total || 0), 0);
+
+      // Atualiza badge de pendentes na aba
+      const navBadge = document.getElementById('nav-badge-pending');
+      if (navBadge) {
+        navBadge.textContent = pendingCount;
+        navBadge.style.display = pendingCount > 0 ? 'inline-block' : 'none';
+      }
+
+      // Atualiza os elementos na tela
+      const elTodaySales = document.getElementById('metric-today-sales');
+      const elTodayCount = document.getElementById('metric-today-count');
+      if (elTodaySales) elTodaySales.textContent = `R$ ${todaySales.toFixed(2).replace('.', ',')}`;
+      if (elTodayCount) elTodayCount.textContent = `(${todayOrders.length} pedidos hoje)`;
+
+      document.getElementById('metric-pending').textContent = pendingCount;
+      document.getElementById('metric-preparing').textContent = preparingCount;
+      document.getElementById('metric-delivering').textContent = deliveringCount;
+      document.getElementById('metric-completed').textContent = completedCount;
+      document.getElementById('metric-total-revenue').textContent = `R$ ${totalRevenue.toFixed(2).replace('.', ',')}`;
+    }
+
+    // ================= FILTROS POR STATUS =================
+    function getStatusCount(statusKey) {
+      if (statusKey === 'Todos') return ordersList.length;
+      if (statusKey === 'Pendente') return ordersList.filter(o => (o.status || 'Pendente') === 'Pendente').length;
+      if (statusKey === 'Saiu para Entrega') return ordersList.filter(o => o.status === 'Saiu para Entrega' || o.status === 'Em Entrega').length;
+      return ordersList.filter(o => o.status === statusKey).length;
+    }
+
+    function renderStatusFilters() {
+      const container = document.getElementById('status-filter-tabs');
+      if (!container) return;
+
+      container.innerHTML = STATUS_OPTIONS.map(opt => {
+        const count = getStatusCount(opt.key);
+        const isActive = activeFilter === opt.key;
+
+        let activeClasses = 'bg-stone-100 text-stone-600 hover:bg-stone-200 border-transparent';
+        if (isActive) {
+          if (opt.key === 'Pendente') activeClasses = 'bg-amber-500 text-white border-amber-600 shadow-xs';
+          else if (opt.key === 'Em Preparo') activeClasses = 'bg-blue-600 text-white border-blue-700 shadow-xs';
+          else if (opt.key === 'Saiu para Entrega') activeClasses = 'bg-purple-600 text-white border-purple-700 shadow-xs';
+          else if (opt.key === 'Concluído') activeClasses = 'bg-emerald-700 text-white border-emerald-800 shadow-xs';
+          else activeClasses = 'bg-stone-900 text-white border-stone-950 shadow-xs';
+        }
+
+        return `
+          <button 
+            onclick="setFilter('${opt.key}')"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition whitespace-nowrap cursor-pointer ${activeClasses}">
+            <span>${opt.icon}</span>
+            <span>${opt.label}</span>
+            <span class="px-1.5 py-0.2 rounded-full text-[10px] font-black ${isActive ? 'bg-white/20 text-white' : 'bg-stone-200 text-stone-700'}">
+              ${count}
+            </span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function setFilter(statusKey) {
+      activeFilter = statusKey;
+      renderStatusFilters();
+      renderOrders();
+    }
+
+    function handleSearch(query) {
+      filterQuery = query.toLowerCase().trim();
+      renderOrders();
+    }
+
+    // ================= RENDERIZAR CARDS DE PEDIDOS =================
+    function renderOrders() {
+      const container = document.getElementById('orders-cards-container');
+      const emptyState = document.getElementById('empty-orders-state');
+      if (!container) return;
+
+      // Filtragem por status e busca
+      let filtered = ordersList.filter(o => {
+        if (activeFilter === 'Pendente') return (o.status || 'Pendente') === 'Pendente';
+        if (activeFilter === 'Saiu para Entrega') return o.status === 'Saiu para Entrega' || o.status === 'Em Entrega';
+        if (activeFilter !== 'Todos') return o.status === activeFilter;
+        return true;
+      });
+
+      if (filterQuery) {
+        filtered = filtered.filter(o => {
+          const nome = (o.cliente_nome || o.nome || '').toLowerCase();
+          const tel = (o.cliente_telefone || o.telefone || '').toLowerCase();
+          const end = (o.endereco || o.address || '').toLowerCase();
+          const id = String(o.id || '').toLowerCase();
+          return nome.includes(filterQuery) || tel.includes(filterQuery) || end.includes(filterQuery) || id.includes(filterQuery);
+        });
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+
+      container.innerHTML = filtered.map(p => {
+        const orderId = p.id || '---';
+        const status = p.status || 'Pendente';
+        const clienteNome = p.cliente_nome || p.nome || 'Cliente sem nome';
+        const clienteTelefone = p.cliente_telefone || p.telefone || 'Sem telefone';
+        const phoneClean = clienteTelefone.replace(/\D/g, '');
+        const endereco = p.endereco || p.address || 'Retirada no Balcão da Loja';
+        const total = Number(p.total || p.valor_total || 0);
+        const pagamento = p.pagamento || p.forma_pagamento || 'PIX';
+        const isDelivery = !endereco.toLowerCase().includes('retirada') && !endereco.toLowerCase().includes('balcão');
+        const dataFormatada = new Date(p.created_at || p.createdAt || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+        // URL para Google Maps
+        const encodedAddress = encodeURIComponent(endereco + ", Brasil");
+        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+
+        // Status Tag
+        let statusBadge = '';
+        let cardBorderClass = 'border-stone-200';
+
+        if (status === 'Pendente') {
+          statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300"><span class="w-2 h-2 rounded-full bg-amber-500 pulse-glow"></span>⏳ Pendente</span>`;
+          cardBorderClass = 'border-amber-300 ring-2 ring-amber-100';
+        } else if (status === 'Em Preparo') {
+          statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-blue-100 text-blue-900 border border-blue-300">👨‍🍳 Em Preparo</span>`;
+          cardBorderClass = 'border-blue-300';
+        } else if (status === 'Saiu para Entrega' || status === 'Em Entrega') {
+          statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-purple-100 text-purple-900 border border-purple-300">🛵 Em Rota</span>`;
+          cardBorderClass = 'border-purple-300';
+        } else if (status === 'Concluído') {
+          statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-300">✅ Concluído</span>`;
+          cardBorderClass = 'border-emerald-300 opacity-95';
+        }
+
+        // Itens
+        let itemsList = [];
+        if (Array.isArray(p.itens)) {
+          itemsList = p.itens;
+        } else if (typeof p.itens === 'string') {
+          try { itemsList = JSON.parse(p.itens); } catch (e) {}
+        }
+
+        return `
+          <div class="bg-white rounded-3xl border ${cardBorderClass} shadow-sm overflow-hidden flex flex-col justify-between transition-all hover:shadow-md">
+            
+            <div class="p-4 sm:p-5 space-y-3.5">
+              
+              <!-- Topo do Card -->
+              <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+                <div class="flex items-center gap-2">
+                  <span class="font-mono font-extrabold text-sm text-stone-900 bg-stone-100 px-2 py-1 rounded-lg">#${orderId}</span>
+                  <span class="text-xs text-stone-400 font-medium">${dataFormatada}</span>
+                </div>
+                
+                <div class="flex items-center gap-1.5">
+                  ${statusBadge}
+                  
+                  <button 
+                    onclick="printOrderReceipt('${orderId}')" 
+                    title="Imprimir cupom do pedido"
+                    class="p-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer touch-manipulation">
+                    <i data-lucide="printer" class="w-4 h-4"></i>
+                  </button>
+
+                  <button 
+                    onclick="promptDeleteOrder('${orderId}')" 
+                    title="Excluir pedido"
+                    class="p-1.5 rounded-xl bg-stone-100 hover:bg-red-50 hover:text-red-600 text-stone-400 transition cursor-pointer touch-manipulation">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- 1. DADOS DO CLIENTE & WHATSAPP DIRETO -->
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <h4 class="font-bold text-stone-900 text-sm flex items-center gap-1.5">
+                    <i data-lucide="user" class="w-4 h-4 text-emerald-700"></i>
+                    ${clienteNome}
+                  </h4>
+                  <p class="text-xs text-stone-500 font-mono mt-0.5">${clienteTelefone}</p>
+                </div>
+                
+                ${phoneClean ? `
+                  <a 
+                    href="https://wa.me/55${phoneClean}?text=Ol%C3%A1%20${encodeURIComponent(clienteNome)},%20aqui%20%C3%A9%20a%20Janete%20do%20Hortifruti!%20Seu%20pedido%20%23${orderId}%20est%C3%A1%20${encodeURIComponent(status)}." 
+                    target="_blank"
+                    class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-[11px] font-bold border border-emerald-200 flex items-center gap-1 transition">
+                    <i data-lucide="message-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
+                    <span>WhatsApp</span>
+                  </a>
+                ` : ''}
+              </div>
+
+              <!-- 2. ENDEREÇO & BOTÃO MAPS -->
+              <div class="p-3 rounded-2xl text-xs ${isDelivery ? 'bg-stone-50 border border-stone-200' : 'bg-amber-50/60 border border-amber-200 text-amber-900'} space-y-2">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-1.5 font-bold">
+                    <i data-lucide="${isDelivery ? 'truck' : 'store'}" class="w-3.5 h-3.5 text-emerald-700"></i>
+                    <span>${isDelivery ? 'Entrega em Domicílio' : 'Retirada na Loja'}</span>
+                  </div>
+
+                  ${isDelivery ? `
+                    <a 
+                      href="${mapsUrl}" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      title="Abrir endereço no Google Maps"
+                      class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-[11px] font-bold transition hover:scale-105 active:scale-95 shadow-2xs">
+                      <i data-lucide="navigation" class="w-3 h-3 text-blue-600"></i>
+                      <span>Abrir no Maps</span>
+                    </a>
+                  ` : `
+                    <span class="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-md">Balcão</span>
+                  `}
+                </div>
+                <p class="text-[11px] text-stone-600 leading-snug">
+                  ${endereco}
+                </p>
+              </div>
+
+              <!-- Lista de Produtos -->
+              <div class="space-y-1 pt-1">
+                <p class="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">Itens do Pedido:</p>
+                <div class="bg-stone-50 rounded-xl p-2.5 space-y-1 border border-stone-100 max-h-36 overflow-y-auto">
+                  ${itemsList.length > 0 ? itemsList.map(item => {
+                    const itemName = item.nome || item.name || 'Produto';
+                    const itemQtd = item.qtd || (item.quantidade ? `${item.quantidade}${item.unidade || 'un'}` : '1x');
+                    const itemPreco = Number(item.preco || item.item_total || item.total || 0);
+
+                    return `
+                      <div class="text-xs flex items-start justify-between gap-2 border-b border-stone-200/50 pb-1 last:border-0 last:pb-0">
+                        <div>
+                          <span class="font-bold text-stone-900">${itemQtd}</span>
+                          <span class="text-stone-700 ml-1">${itemName}</span>
+                          ${item.obs ? `<span class="block text-[10px] text-emerald-800 italic">↳ Obs: ${item.obs}</span>` : ''}
+                        </div>
+                        <span class="font-mono text-stone-600 text-[11px] whitespace-nowrap font-medium">
+                          R$ ${itemPreco.toFixed(2).replace('.', ',')}
+                        </span>
+                      </div>
+                    `;
+                  }).join('') : `
+                    <p class="text-xs text-stone-400 italic">Nenhum item listado.</p>
+                  `}
+                </div>
+              </div>
+
+              <!-- Forma de Pagamento -->
+              <div class="flex items-center justify-between text-xs pt-1">
+                <span class="text-stone-500 font-medium">Forma de Pagamento:</span>
+                <span class="font-bold text-stone-800 bg-stone-100 px-2 py-0.5 rounded-lg text-[11px]">
+                  ${pagamento}
+                </span>
+              </div>
+
+              <!-- Obs -->
+              ${p.observacoes ? `
+                <div class="text-[11px] bg-amber-50 border border-amber-200 text-amber-900 p-2 rounded-xl">
+                  <strong>Obs do Cliente:</strong> ${p.observacoes}
+                </div>
+              ` : ''}
+
+              <!-- Valor Total -->
+              <div class="flex items-center justify-between pt-2 border-t border-stone-200">
+                <span class="font-bold text-xs text-stone-500">Valor Total:</span>
+                <span class="font-heading font-extrabold text-base text-emerald-800">
+                  R$ ${total.toFixed(2).replace('.', ',')}
+                </span>
+              </div>
+
+            </div>
+
+            <!-- Botões de Alteração Rápida de Status -->
+            <div class="p-3 bg-stone-50 border-t border-stone-200 space-y-1.5">
+              <p class="text-[10px] font-bold text-stone-400 uppercase tracking-wider text-center">Atualizar Status:</p>
+              
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                <button 
+                  onclick="updateOrderStatus('${orderId}', 'Pendente')"
+                  class="py-1.5 px-1 rounded-xl text-[11px] font-bold border transition ${status === 'Pendente' ? 'bg-amber-600 text-white border-amber-700 shadow-xs' : 'bg-white text-stone-700 hover:bg-stone-100 border-stone-200'}">
+                  ⏳ Pendente
+                </button>
+
+                <button 
+                  onclick="updateOrderStatus('${orderId}', 'Em Preparo')"
+                  class="py-1.5 px-1 rounded-xl text-[11px] font-bold border transition ${status === 'Em Preparo' ? 'bg-blue-600 text-white border-blue-700 shadow-xs' : 'bg-white text-stone-700 hover:bg-stone-100 border-stone-200'}">
+                  👨‍🍳 Preparo
+                </button>
+
+                <button 
+                  onclick="updateOrderStatus('${orderId}', 'Saiu para Entrega')"
+                  class="py-1.5 px-1 rounded-xl text-[11px] font-bold border transition ${(status === 'Saiu para Entrega' || status === 'Em Entrega') ? 'bg-purple-600 text-white border-purple-700 shadow-xs' : 'bg-white text-stone-700 hover:bg-stone-100 border-stone-200'}">
+                  🛵 Entrega
+                </button>
+
+                <button 
+                  onclick="updateOrderStatus('${orderId}', 'Concluído')"
+                  class="py-1.5 px-1 rounded-xl text-[11px] font-bold border transition ${status === 'Concluído' ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs' : 'bg-white text-stone-700 hover:bg-stone-100 border-stone-200'}">
+                  ✅ Concluído
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    // =========================================================================
+    // 🛵 GERENCIAMENTO DE TAXAS DE ENTREGA (POR BAIRRO) - SUPABASE CRUD
+    // =========================================================================
+    async function loadDeliveryRatesAdmin(showSpinner = false) {
+      const refreshIcon = document.getElementById('rates-refresh-icon');
+      if (showSpinner && refreshIcon) refreshIcon.classList.add('animate-spin');
+
+      let remoteRates = [];
+
+      if (supabaseClient) {
+        try {
+          const { data, error } = await supabaseClient
+            .from('taxas_entrega')
+            .select('*')
+            .order('bairro', { ascending: true });
+
+          if (!error && data) {
+            remoteRates = data;
+            localStorage.setItem('janete_taxas_entrega', JSON.stringify(remoteRates));
+          } else if (error) {
+            console.warn("Aviso ao buscar taxas_entrega no Supabase:", error.message);
+          }
+        } catch (err) {
+          console.warn("Fallback taxas:", err);
+        }
+      }
+
+      if (remoteRates.length === 0) {
+        try {
+          const cached = JSON.parse(localStorage.getItem('janete_taxas_entrega') || '[]');
+          if (cached.length > 0) remoteRates = cached;
+        } catch (e) {}
+      }
+
+      if (remoteRates.length === 0) {
+        remoteRates = [
+          { id: '1', bairro: 'Centro', valor: 5.00 },
+          { id: '2', bairro: 'Jardim Primavera', valor: 6.00 },
+          { id: '3', bairro: 'Vila Nova', valor: 7.00 },
+          { id: '4', bairro: 'Planalto', valor: 8.00 },
+          { id: '5', bairro: 'Bela Vista', valor: 6.50 },
+          { id: '6', bairro: 'Alto do Cruzeiro', valor: 7.50 }
+        ];
+      }
+
+      deliveryRatesList = remoteRates;
+      renderDeliveryRatesAdmin();
+
+      if (showSpinner && refreshIcon) {
+        setTimeout(() => refreshIcon.classList.remove('animate-spin'), 600);
+      }
+    }
+
+    function filterRatesList(query) {
+      ratesFilterQuery = (query || '').toLowerCase().trim();
+      renderDeliveryRatesAdmin();
+    }
+
+    function renderDeliveryRatesAdmin() {
+      const tbody = document.getElementById('delivery-rates-table-body');
+      const emptyState = document.getElementById('rates-empty-state');
+      const countBadge = document.getElementById('rates-count-badge');
+      const navBadge = document.getElementById('nav-badge-rates-count');
+
+      if (countBadge) countBadge.textContent = `${deliveryRatesList.length} Bairros`;
+      if (navBadge) navBadge.textContent = deliveryRatesList.length;
+
+      if (!tbody) return;
+
+      let filtered = deliveryRatesList;
+      if (ratesFilterQuery) {
+        filtered = filtered.filter(r => (r.bairro || '').toLowerCase().includes(ratesFilterQuery));
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '';
+        if (emptyState) emptyState.classList.remove('hidden');
+        return;
+      }
+
+      if (emptyState) emptyState.classList.add('hidden');
+
+      tbody.innerHTML = filtered.map(rate => {
+        const rateId = rate.id || rate.bairro;
+        const valorNum = parseFloat(rate.valor) || 0;
+        const formattedValor = `R$ ${valorNum.toFixed(2).replace('.', ',')}`;
+
+        return `
+          <tr class="hover:bg-stone-50 transition group">
+            <td class="py-3 px-4">
+              <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+                </div>
+                <div>
+                  <span class="font-bold text-stone-900 text-xs sm:text-sm">${rate.bairro}</span>
+                  <span class="block text-[10px] text-stone-400">Atendido pelo delivery</span>
+                </div>
+              </div>
+            </td>
+            <td class="py-3 px-4 font-mono font-extrabold text-xs sm:text-sm text-emerald-800">
+              ${formattedValor}
+            </td>
+            <td class="py-3 px-4 text-center">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                Ativo
+              </span>
+            </td>
+            <td class="py-3 px-4 text-right">
+              <button 
+                onclick="deleteDeliveryRate('${rateId}', '${rate.bairro}')" 
+                title="Excluir taxa de entrega do bairro ${rate.bairro}" 
+                class="p-2 rounded-xl text-stone-400 hover:text-red-600 hover:bg-red-50 active:scale-90 transition cursor-pointer touch-manipulation">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    async function addDeliveryRate(event) {
+      if (event) event.preventDefault();
+
+      const bairroInput = document.getElementById('new-rate-bairro');
+      const valorInput = document.getElementById('new-rate-valor');
+      const btn = document.getElementById('btn-add-rate');
+
+      const bairro = bairroInput.value.trim();
+      const valorStr = valorInput.value.replace(',', '.').trim();
+      const valor = parseFloat(valorStr);
+
+      if (!bairro) {
+        showToast('Por favor, informe o nome do bairro.');
+        bairroInput.focus();
+        return;
+      }
+
+      if (isNaN(valor) || valor < 0) {
+        showToast('Por favor, informe um valor de taxa válido.');
+        valorInput.focus();
+        return;
+      }
+
+      // Verifica duplicidade
+      const exists = deliveryRatesList.find(r => r.bairro.toLowerCase() === bairro.toLowerCase());
+      if (exists) {
+        showToast(`O bairro "${bairro}" já está cadastrado.`);
+        return;
+      }
+
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i data-lucide="loader" class="w-4 h-4 animate-spin"></i><span>Salvando...</span>`;
+      }
+
+      let savedId = null;
+
+      if (supabaseClient) {
+        try {
+          const { data, error } = await supabaseClient
+            .from('taxas_entrega')
+            .insert([{ bairro, valor }])
+            .select();
+
+          if (error) {
+            console.warn("Aviso ao inserir taxa no Supabase:", error.message);
+          } else if (data && data.length > 0) {
+            savedId = data[0].id;
+            console.log("✅ Taxa de entrega inserida no Supabase:", data[0]);
+          }
+        } catch (err) {
+          console.error("Erro ao salvar taxa no Supabase:", err);
+        }
+      }
+
+      const newRate = {
+        id: savedId || ('RATE-' + Date.now()),
+        bairro,
+        valor
+      };
+
+      deliveryRatesList.push(newRate);
+      deliveryRatesList.sort((a, b) => a.bairro.localeCompare(b.bairro));
+      localStorage.setItem('janete_taxas_entrega', JSON.stringify(deliveryRatesList));
+
+      bairroInput.value = '';
+      valorInput.value = '';
+      bairroInput.focus();
+
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="plus" class="w-4 h-4"></i><span>Adicionar Bairro</span>`;
+      }
+
+      renderDeliveryRatesAdmin();
+      showToast(`Taxa de entrega para "${bairro}" adicionada com sucesso!`);
+      lucide.createIcons();
+    }
+
+    async function deleteDeliveryRate(rateId, bairroName) {
+      if (!confirm(`Deseja realmente remover o bairro "${bairroName}" das taxas de entrega?`)) {
+        return;
+      }
+
+      // Otimista
+      deliveryRatesList = deliveryRatesList.filter(r => String(r.id) !== String(rateId) && String(r.bairro) !== String(bairroName));
+      localStorage.setItem('janete_taxas_entrega', JSON.stringify(deliveryRatesList));
+      renderDeliveryRatesAdmin();
+      showToast(`Bairro "${bairroName}" excluído com sucesso.`);
+
+      if (supabaseClient) {
+        try {
+          let query = supabaseClient.from('taxas_entrega').delete();
+          if (rateId && !String(rateId).startsWith('RATE-')) {
+            query = query.eq('id', rateId);
+          } else {
+            query = query.eq('bairro', bairroName);
+          }
+          const { error } = await query;
+          if (error) {
+            console.warn("Aviso ao deletar taxa no Supabase:", error.message);
+          } else {
+            console.log(`✅ Taxa de entrega do bairro ${bairroName} excluída no Supabase.`);
+          }
+        } catch (err) {
+          console.error("Erro ao excluir taxa no Supabase:", err);
+        }
+      }
+    }
+
+    // =========================================================================
+    // ⚡ RELATÓRIO FINANCEIRO E FATURAMENTO (CHART.JS & MÉTRICAS DETALHADAS)
+    // =========================================================================
+    function getFinancialOrdersPool() {
+      const mode = document.getElementById('financial-status-filter')?.value || 'concluded';
+      if (mode === 'concluded') {
+        return ordersList.filter(o => o.status === 'Concluído');
+      }
+      // Todos exceto cancelados
+      return ordersList.filter(o => o.status !== 'Cancelado');
+    }
+
+    function formatDateToKey(d) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function renderFinancialReport() {
+      const pool = getFinancialOrdersPool();
+      const now = new Date();
+      const todayKey = formatDateToKey(now);
+
+      // Data de hoje formatada
+      document.getElementById('fin-card-today-date').textContent = now.toLocaleDateString('pt-BR');
+
+      // 1. FATURAMENTO DE HOJE
+      const todayOrders = pool.filter(o => formatDateToKey(parseOrderDate(o)) === todayKey);
+      const todayRevenue = todayOrders.reduce((acc, o) => acc + Number(o.total || o.valor_total || 0), 0);
+      document.getElementById('fin-card-today-value').textContent = `R$ ${todayRevenue.toFixed(2).replace('.', ',')}`;
+      document.getElementById('fin-card-today-count').textContent = `${todayOrders.length} pedido(s) hoje`;
+
+      // 2. FATURAMENTO DOS ÚLTIMOS 7 DIAS
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(now.getDate() - 6);
+      sevenDaysAgo.setHours(0, 0, 0, 0);
+
+      const last7DaysOrders = pool.filter(o => parseOrderDate(o) >= sevenDaysAgo);
+      const last7DaysRevenue = last7DaysOrders.reduce((acc, o) => acc + Number(o.total || o.valor_total || 0), 0);
+      const avg7DaysDaily = last7DaysRevenue / 7;
+
+      document.getElementById('fin-card-7days-value').textContent = `R$ ${last7DaysRevenue.toFixed(2).replace('.', ',')}`;
+      document.getElementById('fin-card-7days-count').textContent = `${last7DaysOrders.length} pedido(s) nos últimos 7 dias`;
+      document.getElementById('fin-card-7days-avg').textContent = `R$ ${avg7DaysDaily.toFixed(2).replace('.', ',')} / dia`;
+
+      // 3. FATURAMENTO DO MÊS ATUAL
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      const monthOrders = pool.filter(o => {
+        const d = parseOrderDate(o);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      });
+      const monthRevenue = monthOrders.reduce((acc, o) => acc + Number(o.total || o.valor_total || 0), 0);
+      const monthName = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+      document.getElementById('fin-card-month-value').textContent = `R$ ${monthRevenue.toFixed(2).replace('.', ',')}`;
+      document.getElementById('fin-card-month-name').textContent = monthName;
+
+      // 4. TOTAL DE PEDIDOS CONCLUÍDOS & TICKET MÉDIO
+      const totalCount = pool.length;
+      const totalRevenue = pool.reduce((acc, o) => acc + Number(o.total || o.valor_total || 0), 0);
+      const avgTicket = totalCount > 0 ? (totalRevenue / totalCount) : 0;
+
+      document.getElementById('fin-card-completed-count').textContent = totalCount;
+      document.getElementById('fin-card-total-revenue').textContent = `R$ ${totalRevenue.toFixed(2).replace('.', ',')} acumulados`;
+      document.getElementById('fin-card-avg-ticket').textContent = `R$ ${avgTicket.toFixed(2).replace('.', ',')}`;
+
+      // 5. RENDERIZAR GRÁFICO DA SEMANA (CHART.JS)
+      renderWeeklyBarChart(pool);
+
+      // 6. RENDERIZAR TABELA DE HISTÓRICO DIÁRIO
+      renderDailyHistoryTable(pool);
+    }
+
+    // Gráfico de Barras Chart.js
+    function renderWeeklyBarChart(pool) {
+      const canvas = document.getElementById('financial-weekly-chart');
+      if (!canvas) return;
+
+      // Monta os últimos 7 dias (do 6º dia atrás até hoje)
+      const labels = [];
+      const dataPoints = [];
+      const orderCountPoints = [];
+
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dayKey = formatDateToKey(d);
+        
+        // Nome abreviado do dia (ex: Seg 20/08)
+        const dayLabel = d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+        labels.push(dayLabel);
+
+        const dayOrders = pool.filter(o => formatDateToKey(parseOrderDate(o)) === dayKey);
+        const sum = dayOrders.reduce((acc, o) => acc + Number(o.total || o.valor_total || 0), 0);
+        dataPoints.push(Number(sum.toFixed(2)));
+        orderCountPoints.push(dayOrders.length);
+      }
+
+      if (financialChartInstance) {
+        financialChartInstance.destroy();
+      }
+
+      const ctx = canvas.getContext('2d');
+      financialChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Faturamento (R$)',
+            data: dataPoints,
+            backgroundColor: [
+              'rgba(16, 185, 129, 0.75)',
+              'rgba(16, 185, 129, 0.75)',
+              'rgba(16, 185, 129, 0.75)',
+              'rgba(16, 185, 129, 0.75)',
+              'rgba(16, 185, 129, 0.75)',
+              'rgba(16, 185, 129, 0.75)',
+              'rgba(5, 150, 105, 0.95)' // Hoje mais escuro
+            ],
+            borderColor: [
+              '#059669', '#059669', '#059669', '#059669', '#059669', '#059669', '#047857'
+            ],
+            borderWidth: 2,
+            borderRadius: 10,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: '#1c1917',
+              titleFont: { family: 'Outfit', size: 13, weight: 'bold' },
+              bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
+              padding: 12,
+              cornerRadius: 12,
+              callbacks: {
+                label: function(context) {
+                  const idx = context.dataIndex;
+                  const valor = context.parsed.y || 0;
+                  const qtd = orderCountPoints[idx];
+                  return [
+                    `Faturamento: R$ ${valor.toFixed(2).replace('.', ',')}`,
+                    `Pedidos: ${qtd}`
+                  ];
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: '#f5f5f4',
+                drawBorder: false
+              },
+              ticks: {
+                font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' },
+                color: '#78716c',
+                callback: function(value) {
+                  return 'R$ ' + value;
+                }
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              },
+              ticks: {
+                font: { family: 'Plus Jakarta Sans', size: 11, weight: 'bold' },
+                color: '#44403c'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Tabela de Histórico Diário de Vendas
+    function renderDailyHistoryTable(pool) {
+      const tbody = document.getElementById('financial-days-table-body');
+      const emptyBox = document.getElementById('financial-empty-table');
+      const dateDetailBox = document.getElementById('financial-date-detail-box');
+      if (!tbody) return;
+
+      // Agrupar pedidos por data (YYYY-MM-DD)
+      const dayMap = new Map();
+
+      pool.forEach(o => {
+        const d = parseOrderDate(o);
+        const key = formatDateToKey(d);
+        if (!dayMap.has(key)) {
+          dayMap.set(key, {
+            dateKey: key,
+            dateObj: d,
+            orders: [],
+            totalRevenue: 0,
+            statusCounts: {}
+          });
+        }
+        const entry = dayMap.get(key);
+        entry.orders.push(o);
+        entry.totalRevenue += Number(o.total || o.valor_total || 0);
+        const st = o.status || 'Pendente';
+        entry.statusCounts[st] = (entry.statusCounts[st] || 0) + 1;
+      });
+
+      let daysList = Array.from(dayMap.values());
+      // Ordena por data decrescente
+      daysList.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
+
+      // Filtro de data específica se houver
+      if (selectedFinancialDate) {
+        const match = dayMap.get(selectedFinancialDate);
+        if (dateDetailBox) {
+          dateDetailBox.classList.remove('hidden');
+          const [yyyy, mm, dd] = selectedFinancialDate.split('-');
+          const dObj = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+          document.getElementById('fin-selected-date-title').textContent = dObj.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+          document.getElementById('fin-selected-date-orders-count').textContent = match ? `${match.orders.length} pedido(s)` : '0 pedidos';
+          document.getElementById('fin-selected-date-revenue').textContent = match ? `R$ ${match.totalRevenue.toFixed(2).replace('.', ',')}` : 'R$ 0,00';
+        }
+        daysList = daysList.filter(d => d.dateKey === selectedFinancialDate);
+      } else {
+        if (dateDetailBox) dateDetailBox.classList.add('hidden');
+      }
+
+      if (daysList.length === 0) {
+        tbody.innerHTML = '';
+        emptyBox.classList.remove('hidden');
+        return;
+      }
+
+      emptyBox.classList.add('hidden');
+
+      tbody.innerHTML = daysList.map(item => {
+        const formattedDate = item.dateObj.toLocaleDateString('pt-BR');
+        const weekday = item.dateObj.toLocaleDateString('pt-BR', { weekday: 'long' });
+        const qtd = item.orders.length;
+        const avg = qtd > 0 ? (item.totalRevenue / qtd) : 0;
+        
+        // Status mais frequente
+        let topStatus = 'Concluído';
+        let topStatusCount = 0;
+        Object.entries(item.statusCounts).forEach(([st, c]) => {
+          if (c > topStatusCount) {
+            topStatusCount = c;
+            topStatus = st;
+          }
+        });
+
+        return `
+          <tr class="hover:bg-stone-50/80 transition-colors">
+            <td class="py-3.5 px-4 font-mono font-bold text-stone-900">
+              <span class="inline-flex items-center gap-1.5">
+                <i data-lucide="calendar" class="w-3.5 h-3.5 text-emerald-700"></i>
+                ${formattedDate}
+              </span>
+            </td>
+            <td class="py-3.5 px-4 capitalize text-stone-600 font-medium">
+              ${weekday}
+            </td>
+            <td class="py-3.5 px-4 text-center">
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-black bg-stone-100 text-stone-800">
+                ${qtd}
+              </span>
+            </td>
+            <td class="py-3.5 px-4 text-right font-mono text-stone-600 font-semibold">
+              R$ ${avg.toFixed(2).replace('.', ',')}
+            </td>
+            <td class="py-3.5 px-4 text-right">
+              <span class="font-heading font-extrabold text-sm text-emerald-800">
+                R$ ${item.totalRevenue.toFixed(2).replace('.', ',')}
+              </span>
+            </td>
+            <td class="py-3.5 px-4 text-center">
+              <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold ${
+                topStatus === 'Concluído' ? 'bg-emerald-100 text-emerald-900' :
+                topStatus === 'Pendente' ? 'bg-amber-100 text-amber-900' : 'bg-blue-100 text-blue-900'
+              }">
+                ${topStatus}
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function handleDateFilterChange(val) {
+      selectedFinancialDate = val || null;
+      renderFinancialReport();
+    }
+
+    function setFinancialDateToday() {
+      const todayStr = formatDateToKey(new Date());
+      const picker = document.getElementById('financial-date-picker');
+      if (picker) picker.value = todayStr;
+      selectedFinancialDate = todayStr;
+      renderFinancialReport();
+    }
+
+    function clearFinancialDateFilter() {
+      const picker = document.getElementById('financial-date-picker');
+      if (picker) picker.value = '';
+      selectedFinancialDate = null;
+      renderFinancialReport();
+    }
+
+    // ================= IMPRESSÃO DE CUPOM DE PAPEL / SACOLA FORMATADO =================
+    function printOrderReceipt(orderId) {
+      const p = ordersList.find(o => String(o.id) === String(orderId));
+      if (!p) return;
+
+      const printArea = document.getElementById('print-area');
+      let itemsList = Array.isArray(p.itens) ? p.itens : [];
+      if (typeof p.itens === 'string') {
+        try { itemsList = JSON.parse(p.itens); } catch (e) {}
+      }
+
+      const clienteNome = p.cliente_nome || p.nome || 'Cliente';
+      const clienteTelefone = p.cliente_telefone || p.telefone || 'Sem telefone';
+      const endereco = p.endereco || p.address || 'Retirada na Loja';
+      const total = Number(p.total || p.valor_total || 0);
+      const pagamento = p.pagamento || p.forma_pagamento || 'PIX';
+      const isDelivery = !endereco.toLowerCase().includes('retirada') && !endereco.toLowerCase().includes('balcão');
+
+      printArea.innerHTML = `
+        <div style="font-family: 'Courier New', Courier, monospace; width: 280px; padding: 10px; margin: 0 auto; color: #000;">
+          <center>
+            <h2 style="margin:0; font-size:16px; font-weight: bold; text-transform: uppercase;">🥬 HORTIFRUTI DA JANETE 🥬</h2>
+            <p style="margin:2px 0; font-size:11px;">Frutas, Legumes & Verduras Fresquinhas</p>
+            <p style="margin:2px 0; font-size:10px;">WhatsApp: (11) 99999-8888</p>
+            <hr style="border:none; border-top:1px dashed #000; margin:8px 0;">
+            <p style="margin:0; font-size:15px; font-weight:bold; letter-spacing: 1px;">PEDIDO #${p.id}</p>
+            <p style="margin:2px 0; font-size:10px;">${new Date(p.created_at || p.createdAt || Date.now()).toLocaleString('pt-BR')}</p>
+            <p style="margin:2px 0; font-size:11px; font-weight:bold; background: #eee; padding: 2px 4px;">${isDelivery ? '🛵 ENTREGA EM DOMICÍLIO' : '🏬 RETIRADA NO BALCÃO'}</p>
+          </center>
+          
+          <hr style="border:none; border-top:1px dashed #000; margin:8px 0;">
+          
+          <p style="margin:2px 0; font-size:11px;"><strong>Cliente:</strong> ${clienteNome}</p>
+          <p style="margin:2px 0; font-size:11px;"><strong>WhatsApp:</strong> ${clienteTelefone}</p>
+          <p style="margin:2px 0; font-size:11px; line-height: 1.2;"><strong>Endereço:</strong> ${endereco}</p>
+          
+          <hr style="border:none; border-top:1px dashed #000; margin:8px 0;">
+          
+          <p style="margin:2px 0; font-weight:bold; font-size:11px;">ITENS DO PEDIDO / SACOLA:</p>
+          
+          <div style="margin: 4px 0;">
+            ${itemsList.map(i => {
+              const itemNome = i.nome || i.name || 'Item';
+              const itemQtd = i.qtd || (i.quantidade ? `${item.quantidade}${item.unidade || 'un'}` : '1x');
+              const itemPreco = Number(i.preco || i.item_total || i.total || 0).toFixed(2);
+              return `
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px; font-size:11px;">
+                  <span style="max-width: 190px;"><strong>${itemQtd}</strong> ${itemNome}</span>
+                  <span style="font-weight:bold;">R$ ${itemPreco}</span>
+                </div>
+                ${i.obs ? `<div style="font-size:10px; font-style:italic; margin-left: 10px; margin-bottom: 2px;">↳ Obs: ${i.obs}</div>` : ''}
+              `;
+            }).join('')}
+          </div>
+          
+          <hr style="border:none; border-top:1px dashed #000; margin:8px 0;">
+          
+          <div style="display:flex; justify-content:space-between; font-size:14px; font-weight:bold; padding: 2px 0;">
+            <span>TOTAL A PAGAR:</span>
+            <span>R$ ${total.toFixed(2).replace('.', ',')}</span>
+          </div>
+          
+          <p style="margin:4px 0 0 0; font-size:11px;"><strong>Pagamento:</strong> ${pagamento}</p>
+          ${p.observacoes ? `<p style="margin:4px 0 0 0; font-size:10px; background: #fafafa; padding: 3px;"><strong>Obs Geral:</strong> ${p.observacoes}</p>` : ''}
+          
+          <hr style="border:none; border-top:1px dashed #000; margin:8px 0;">
+          
+          <center style="font-size:10px; margin-top: 6px;">
+            <p style="margin: 2px 0; font-weight: bold;">Obrigado pela preferência!</p>
+            <p style="margin: 2px 0;">Alimentos selecionados com carinho 💚</p>
+            <p style="margin: 6px 0 0 0; font-size: 8px;">--- CORTE AQUI PARA A SACOLA ---</p>
+          </center>
+        </div>
+      `;
+
+      window.print();
+    }
+
+    // ================= TOAST DE NOTIFICAÇÃO VISUAL =================
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'fixed bottom-5 right-5 z-50 bg-emerald-900 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-emerald-700 animate-in slide-in-from-bottom duration-300';
+      toast.innerHTML = `
+        <span class="text-xl">🔔</span>
+        <div>
+          <h5 class="font-bold text-xs">Novo Pedido Recebido!</h5>
+          <p class="text-[11px] text-emerald-200">${message}</p>
+        </div>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 6000);
+    }
+
+    // Iniciar verificação de autenticação
+    document.addEventListener('DOMContentLoaded', () => {
+      checkAuthentication();
+    });
+  </script>
+
+</body>
+</html>
