@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#166534">
   <title>Painel de Pedidos & Financeiro - Hortifruti da Janete</title>
   <meta name="description" content="Painel de controle em tempo real para gerenciar pedidos e relatórios financeiros do Hortifruti da Janete com alertas sonoros, Chart.js e Supabase.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👑</text></svg>">
@@ -137,7 +140,7 @@
           <button 
             id="tab-btn-orders" 
             onclick="switchAdminTab('orders')"
-            class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition cursor-pointer bg-white text-emerald-900 shadow-xs font-bold">
+            class="flex items-center gap-1.5 px-3 py-2 rounded-xl transition cursor-pointer bg-white text-emerald-900 shadow-xs font-bold">
             <i data-lucide="package" class="w-4 h-4 text-emerald-700"></i>
             <span>Gestão de Pedidos</span>
             <span id="nav-badge-pending" class="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-500 text-white">0</span>
@@ -146,7 +149,7 @@
           <button 
             id="tab-btn-rates" 
             onclick="switchAdminTab('rates')"
-            class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-stone-600 hover:text-stone-900 transition cursor-pointer font-bold">
+            class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-stone-600 hover:text-stone-900 transition cursor-pointer font-bold">
             <i data-lucide="map-pin" class="w-4 h-4 text-stone-500"></i>
             <span>Taxas de Entrega</span>
             <span id="nav-badge-rates-count" class="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-black bg-stone-200 text-stone-700">0</span>
@@ -155,7 +158,7 @@
           <button 
             id="tab-btn-financial" 
             onclick="switchAdminTab('financial')"
-            class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-stone-600 hover:text-stone-900 transition cursor-pointer font-bold">
+            class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-stone-600 hover:text-stone-900 transition cursor-pointer font-bold">
             <i data-lucide="bar-chart-3" class="w-4 h-4 text-stone-500"></i>
             <span>Relatório Financeiro</span>
           </button>
@@ -756,21 +759,13 @@
   <!-- ================= SUPABASE CLIENT CONFIGURATION ================= -->
   <script>
     // -------------------------------------------------------------
-    // ⚡ CREDENCIAIS OFICIAIS DO SUPABASE (MANTIDAS INTACTAS)
+    // ⚡ CREDENCIAIS OFICIAIS DO SUPABASE (ALINHADAS 100%)
     // -------------------------------------------------------------
     const SUPABASE_URL = "https://psfbutsevucdksmhttia.supabase.co";
     const SUPABASE_KEY = "sb_publishable_Yh4aq9mLbbgoOKymYxIIsw_AnCEyR-w";
-
-    let supabaseClient = null;
+    const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+    const supabaseClient = supabase;
     let realtimeChannel = null;
-
-    try {
-      if (window.supabase) {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      }
-    } catch (e) {
-      console.warn("Aviso ao conectar cliente Supabase no painel:", e);
-    }
   </script>
 
   <!-- ================= ALERTA SONORO NATIVO (WEB AUDIO API) ================= -->
@@ -942,7 +937,7 @@
     // ================= INICIALIZAÇÃO =================
     function initDashboard() {
       renderStatusFilters();
-      loadOrders();
+      carregarPedidos();
       loadDeliveryRatesAdmin();
       setupRealtimeListener();
       setupBroadcastListener();
@@ -950,11 +945,11 @@
 
     // ================= SUPABASE REALTIME LISTENER =================
     function setupRealtimeListener() {
-      if (!supabaseClient) return;
+      if (!supabase) return;
 
       try {
-        realtimeChannel = supabaseClient
-          .channel('janete-admin-realtime')
+        realtimeChannel = supabase
+          .channel('pedidos-channel')
           .on(
             'postgres_changes',
             { event: 'INSERT', schema: 'public', table: 'pedidos' },
@@ -963,7 +958,7 @@
               playNewOrderSound();
               const clienteNome = payload.new.cliente_nome || payload.new.nome || 'Cliente';
               showToast(`Novo pedido #${payload.new.id || ''} recebido de ${clienteNome}!`);
-              loadOrders(false);
+              carregarPedidos();
             }
           )
           .on(
@@ -971,7 +966,15 @@
             { event: 'UPDATE', schema: 'public', table: 'pedidos' },
             (payload) => {
               console.log('⚡ Pedido Atualizado via Supabase:', payload);
-              loadOrders(false);
+              carregarPedidos();
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: 'DELETE', schema: 'public', table: 'pedidos' },
+            (payload) => {
+              console.log('⚡ Pedido Excluído via Supabase:', payload);
+              carregarPedidos();
             }
           )
           .on(
@@ -984,7 +987,7 @@
           )
           .subscribe((status) => {
             const badge = document.getElementById('realtime-status-badge');
-            if (status === 'SUBSCRIBED') {
+            if (badge && status === 'SUBSCRIBED') {
               badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300';
               badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-600 pulse-glow"></span><span>🟢 Ao Vivo</span>';
             }
@@ -1004,7 +1007,7 @@
             playNewOrderSound();
             const clienteNome = event.data.order.cliente_nome || event.data.order.nome || 'Cliente';
             showToast(`Novo pedido de ${clienteNome}!`);
-            loadOrders(false);
+            carregarPedidos();
           } else if (event.data.type === 'ORDER_DELETED') {
             const deletedId = event.data.orderId;
             ordersList = ordersList.filter(o => String(o.id) !== String(deletedId));
@@ -1027,27 +1030,29 @@
     }
 
     // ================= CARREGAR PEDIDOS DO SUPABASE =================
-    async function loadOrders(showSpinner = false) {
+    async function carregarPedidos(showSpinner = false) {
       const refreshIcon = document.getElementById('refresh-icon');
       if (showSpinner && refreshIcon) refreshIcon.classList.add('animate-spin');
 
       let remoteOrders = [];
 
-      if (supabaseClient) {
+      if (supabase) {
         try {
-          const { data, error } = await supabaseClient
+          const { data, error } = await supabase
             .from('pedidos')
             .select('*')
             .order('created_at', { ascending: false });
 
-          if (!error && data) {
+          if (error) {
+            console.error("Erro detalhado ao buscar pedidos no Supabase:", error);
+          } else if (data) {
             remoteOrders = data;
-          } else if (error) {
-            console.warn("Aviso ao buscar pedidos no Supabase:", error.message);
           }
         } catch (err) {
-          console.warn("Fallback de busca:", err);
+          console.error("Erro detalhado ao buscar pedidos no Supabase:", err);
         }
+      } else {
+        console.warn("Cliente Supabase não inicializado no Admin.");
       }
 
       // Sincroniza com localStorage como salvaguarda
@@ -1080,6 +1085,8 @@
         setTimeout(() => refreshIcon.classList.remove('animate-spin'), 600);
       }
     }
+
+    const loadOrders = carregarPedidos;
 
     // ================= ATUALIZAR STATUS DO PEDIDO (UPDATE) =================
     async function updateOrderStatus(orderId, newStatus) {
@@ -2129,7 +2136,7 @@
           <div style="margin: 4px 0;">
             ${itemsList.map(i => {
               const itemNome = i.nome || i.name || 'Item';
-              const itemQtd = i.qtd || (i.quantidade ? `${i.quantidade}${i.unidade || 'un'}` : '1x');
+              const itemQtd = i.qtd || (i.quantidade ? `${item.quantidade}${item.unidade || 'un'}` : '1x');
               const itemPreco = Number(i.preco || i.item_total || i.total || 0).toFixed(2);
               return `
                 <div style="display:flex; justify-content:space-between; margin-bottom:3px; font-size:11px;">
