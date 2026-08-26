@@ -1,0 +1,21 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[redirects]]
+  from = "/admin"
+  to = "/#admin"
+  status = 302
+
+[[redirects]]
+  from = "/admin/"
+  to = "/#admin"
+  status = 302
+
+[[redirects]]
+  from = "/admin.html"
+  to = "/#admin"
+  status = 302
