@@ -240,6 +240,14 @@ export default function App() {
     await dataSync.resetSampleData();
   };
 
+  const handleClearArchivedOrders = async () => {
+    await dataSync.clearArchivedOrders();
+  };
+
+  const handleClearAllOrders = async () => {
+    await dataSync.clearAllOrders();
+  };
+
   const cartTotal = cartItems.reduce((acc, item) => acc + item.itemTotal, 0);
   const cartCount = cartItems.length;
   const pendingOrdersCount = orders.filter(o => o.status === 'pending').length;
@@ -281,6 +289,8 @@ export default function App() {
               onUpdateStoreConfig={handleUpdateStoreConfig}
               onToggleProductStock={handleToggleProductStock}
               onResetData={handleResetData}
+              onClearArchivedOrders={handleClearArchivedOrders}
+              onClearAllOrders={handleClearAllOrders}
               onLogout={handleLogout}
             />
           ) : (

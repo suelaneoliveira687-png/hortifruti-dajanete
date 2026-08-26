@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { FinancialPanel } from './FinancialPanel';
 import { 
   Store, 
   Power, 
@@ -40,6 +41,8 @@ interface AdminViewProps {
   onToggleProductStock: (productId: string) => void;
   onResetData: () => void;
   onLogout: () => void;
+  onClearArchivedOrders: () => void;
+  onClearAllOrders: () => void;
 }
 
 export const AdminView: React.FC<AdminViewProps> = ({
@@ -51,6 +54,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
   onUpdateStoreConfig,
   onToggleProductStock,
   onResetData,
+  onClearArchivedOrders,
+  onClearAllOrders,
   onLogout
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'orders' | 'stock' | 'rates' | 'financial' | 'settings'>('orders');
@@ -487,23 +492,13 @@ export const AdminView: React.FC<AdminViewProps> = ({
         </div>
       )}
 
-      {activeSubTab === 'financial' && (() => {
-        const validOrders = orders.filter(order => order.status !== 'cancelled');
-        const todayKey = new Date().toDateString();
-        const todayOrders = validOrders.filter(order => new Date(order.createdAt).toDateString() === todayKey);
-        const monthOrders = validOrders.filter(order => { const date = new Date(order.createdAt); const now = new Date(); return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear(); });
-        const revenue = (items: Order[]) => items.reduce((sum, order) => sum + order.total, 0);
-        const groupedByDate = validOrders.reduce((groups, order) => { const key = new Date(order.createdAt).toLocaleDateString('pt-BR'); groups[key] = [...(groups[key] || []), order]; return groups; }, {} as Record<string, Order[]>);
-        return <div className="space-y-5">
-          <div><h3 className="font-heading font-extrabold text-lg text-stone-900 flex items-center gap-2"><BarChart3 className="w-5 h-5 text-emerald-700" /> Relatório Financeiro</h3><p className="text-xs text-stone-500">Faturamento preservado por data, mesmo quando um pedido é arquivado.</p></div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-emerald-800 text-white rounded-2xl p-4"><span className="text-xs text-emerald-200">Hoje</span><p className="font-heading font-black text-2xl">{formatCurrency(revenue(todayOrders))}</p><span className="text-xs text-emerald-200">{todayOrders.length} pedidos</span></div>
-            <div className="bg-white border border-stone-200 rounded-2xl p-4"><span className="text-xs text-stone-500">Mês atual</span><p className="font-heading font-black text-2xl text-stone-900">{formatCurrency(revenue(monthOrders))}</p><span className="text-xs text-stone-500">{monthOrders.length} pedidos</span></div>
-            <div className="bg-white border border-stone-200 rounded-2xl p-4"><span className="text-xs text-stone-500">Histórico</span><p className="font-heading font-black text-2xl text-emerald-800">{formatCurrency(revenue(validOrders))}</p><span className="text-xs text-stone-500">{validOrders.length} pedidos válidos</span></div>
-          </div>
-          <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden"><div className="p-4 border-b border-stone-100 flex items-center gap-2"><CalendarDays className="w-4 h-4 text-emerald-700" /><strong className="text-sm">Histórico por dia</strong></div>{(Object.entries(groupedByDate) as [string, Order[]][]).sort(([, first], [, second]) => new Date(second[0].createdAt).getTime() - new Date(first[0].createdAt).getTime()).map(([date, dayOrders]) => <div key={date} className="flex items-center justify-between p-3 border-b border-stone-100 last:border-0 text-xs"><span className="font-bold text-stone-700">{date}</span><span className="text-stone-500">{dayOrders.length} pedidos</span><strong className="text-emerald-800">{formatCurrency(revenue(dayOrders))}</strong></div>)}</div>
-        </div>;
-      })()}
+      {activeSubTab === 'financial' && (
+        <FinancialPanel
+          orders={orders}
+          onClearArchived={onClearArchivedOrders}
+          onClearAll={onClearAllOrders}
+        />
+      )}
 
       {activeSubTab === 'stock' && (
         <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-xs space-y-6">

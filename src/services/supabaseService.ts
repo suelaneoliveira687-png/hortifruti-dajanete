@@ -198,6 +198,28 @@ class SupabaseDataSyncService {
 
   async toggleProductStock(productId: string) { this.products = this.products.map(product => product.id === productId ? { ...product, inStock: !product.inStock } : product); localStorage.setItem(PRODUCTS_KEY, JSON.stringify(this.products)); this.emitProducts(); }
   async resetSampleData() { this.products = INITIAL_PRODUCTS; this.orders = INITIAL_MOCK_ORDERS; this.config = INITIAL_STORE_CONFIG; this.emitProducts(); this.emitOrders(); this.emitConfig(); }
+
+  async clearArchivedOrders() {
+    const toDelete = this.orders.filter(o => o.archived);
+    this.orders = this.orders.filter(o => !o.archived);
+    localStorage.setItem(ORDERS_KEY, JSON.stringify(this.orders));
+    this.emitOrders();
+    if (supabase && toDelete.length > 0) {
+      for (const order of toDelete) {
+        const query = supabase.from('pedidos').delete();
+        await (order.id.startsWith('ord-') ? query.eq('external_id', order.id) : query.eq('id', order.id));
+      }
+    }
+  }
+
+  async clearAllOrders() {
+    this.orders = [];
+    localStorage.setItem(ORDERS_KEY, JSON.stringify(this.orders));
+    this.emitOrders();
+    if (supabase) {
+      await supabase.from('pedidos').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    }
+  }
 }
 
 export const dataSync = new SupabaseDataSyncService();
