@@ -13,7 +13,6 @@ import { JaneteLogo } from './components/JaneteLogo';
 import { Phone, MapPin, Sparkles, Clock, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 const CART_STORAGE_KEY = 'janete_cart_session_v4';
-const ADMIN_AUTH_KEY = 'janete_admin_auth_v1';
 const LAST_ORDER_KEY = 'ultimo_pedido_id';
 
 export default function App() {
@@ -41,12 +40,7 @@ export default function App() {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(ADMIN_AUTH_KEY) === 'true';
-    }
-    return false;
-  });
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -75,6 +69,10 @@ export default function App() {
     }
     return [];
   });
+
+  useEffect(() => {
+    return dataSync.subscribeAdminAuth(setIsAdminAuthenticated);
+  }, []);
 
   // Track initial load to not play chime on first render
   const isFirstLoad = useRef(true);
@@ -185,6 +183,14 @@ export default function App() {
     }
   };
 
+  const handleRemoveTrackedOrder = () => {
+    setTrackedOrderId(null);
+    setIsTrackerOpen(false);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(LAST_ORDER_KEY);
+    }
+  };
+
   // Find tracked order object (by id or orderNumber)
   const trackedOrder = orders.find(o => 
     o.id === trackedOrderId || 
@@ -192,20 +198,25 @@ export default function App() {
     (trackedOrderId && o.orderNumber.toLowerCase() === trackedOrderId.toLowerCase())
   ) || null;
 
-  // Admin actions
-  const handleLoginSuccess = () => {
-    setIsAdminAuthenticated(true);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(ADMIN_AUTH_KEY, 'true');
+  useEffect(() => {
+    const normalizedStatus = String(trackedOrder?.status || '').toLowerCase();
+    const isCompleted = ['completed', 'concluído', 'concluido'].includes(normalizedStatus);
+
+    if (isCompleted) {
+      setTrackedOrderId(null);
+      setIsTrackerOpen(false);
+      localStorage.removeItem(LAST_ORDER_KEY);
     }
+  }, [trackedOrder?.status]);
+
+  // Admin actions
+  const handleLoginSuccess = async (email: string, password: string) => {
+    await dataSync.signInAdmin(email, password);
     soundService.playSuccessTone();
   };
 
-  const handleLogout = () => {
-    setIsAdminAuthenticated(false);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(ADMIN_AUTH_KEY);
-    }
+  const handleLogout = async () => {
+    await dataSync.signOutAdmin();
   };
 
   const handleUpdateStatus = async (orderId: string, status: OrderStatus) => {
@@ -275,7 +286,6 @@ export default function App() {
           ) : (
             <AdminLogin
               onLoginSuccess={handleLoginSuccess}
-              expectedPassword={config.adminPassword}
             />
           )
         )}
@@ -306,6 +316,7 @@ export default function App() {
         order={trackedOrder}
         isOpen={isTrackerOpen && Boolean(trackedOrder)}
         onClose={() => setIsTrackerOpen(false)}
+        onRemove={handleRemoveTrackedOrder}
         whatsappNumber={config.phoneWhatsApp || config.formattedPhone}
       />
 

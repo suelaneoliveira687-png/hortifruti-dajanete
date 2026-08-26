@@ -12,13 +12,15 @@ import {
   MessageCircle, 
   ShoppingBag, 
   Store as StoreIcon,
-  Activity
+  Activity,
+  Trash2
 } from 'lucide-react';
 
 interface OrderTrackerModalProps {
   order: Order | null;
   isOpen: boolean;
   onClose: () => void;
+  onRemove: () => void;
   whatsappNumber: string;
 }
 
@@ -26,6 +28,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
   order,
   isOpen,
   onClose,
+  onRemove,
   whatsappNumber
 }) => {
   const [copied, setCopied] = React.useState(false);
@@ -128,7 +131,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                   Acompanhamento do Pedido
                 </h3>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-950 text-emerald-300 border border-emerald-500/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> Ao Vivo
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Ao Vivo
                 </span>
               </div>
               <p className="text-xs text-slate-300 flex items-center gap-1.5 mt-0.5">
@@ -345,6 +348,15 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
             className="w-full sm:w-auto py-2.5 px-4 bg-slate-200 hover:bg-slate-300 active:scale-95 text-slate-800 font-bold rounded-xl text-xs transition cursor-pointer"
           >
             Minimizar
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="w-full sm:w-auto py-2.5 px-3 text-slate-500 hover:text-red-700 hover:bg-red-50 rounded-xl text-xs font-bold transition cursor-pointer inline-flex items-center justify-center gap-1.5"
+            title="Remover este pedido do acompanhamento"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Remover acompanhamento
           </button>
         </div>
       </div>

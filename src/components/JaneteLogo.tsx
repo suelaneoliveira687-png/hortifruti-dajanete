@@ -21,9 +21,12 @@ export const JaneteLogo: React.FC<JaneteLogoProps> = ({
     >
       {!imgError ? (
         <img
-          src="/logo_hortifruti_janete.jpg"
+          src="/assets/images/logo_hortifruti_janete_hd_1787334921152.jpg"
           alt="Hortifruti da Janete"
           className="w-full h-full object-contain rounded-full drop-shadow-md hover:scale-105 transition-transform duration-200"
+          width={typeof size === 'number' ? size : undefined}
+          height={typeof size === 'number' ? size : undefined}
+          loading="eager"
           onError={() => setImgError(true)}
           referrerPolicy="no-referrer"
         />

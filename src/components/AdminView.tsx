@@ -63,7 +63,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [editDeliveryTime, setEditDeliveryTime] = useState(config.estimatedDeliveryTime);
   const [editPixKey, setEditPixKey] = useState(config.pixKey);
   const [editPixType, setEditPixType] = useState(config.pixKeyType);
-  const [editPassword, setEditPassword] = useState(config.adminPassword);
   const [settingsSaved, setSettingsSaved] = useState(false);
 
   const toggleSound = () => {
@@ -90,8 +89,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       minOrderValue: parseFloat(editMinOrder) || 0,
       estimatedDeliveryTime: editDeliveryTime,
       pixKey: editPixKey,
-      pixKeyType: editPixType,
-      adminPassword: editPassword
+      pixKeyType: editPixType
     });
     setSettingsSaved(true);
     soundService.playSuccessTone();
@@ -587,18 +585,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   <option value="Aleatória">Aleatória</option>
                 </select>
               </div>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-stone-700 mb-1">
-                Senha de Acesso ao Painel Admin
-              </label>
-              <input
-                type="text"
-                value={editPassword}
-                onChange={(e) => setEditPassword(e.target.value)}
-                className="w-full max-w-xs bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-stone-900 font-mono focus:outline-emerald-500"
-              />
             </div>
 
             {settingsSaved && (

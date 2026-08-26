@@ -95,9 +95,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={onOpenTracker}
-                className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-[#C5A059]/40 text-amber-900 text-xs font-bold transition shadow-2xs cursor-pointer animate-pulse"
+                className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-[#C5A059]/40 text-amber-900 text-xs font-bold transition shadow-2xs cursor-pointer"
               >
-                <span className="w-2 h-2 rounded-full bg-[#F5C518] animate-ping" />
+                <span className="w-2 h-2 rounded-full bg-[#F5C518]" />
                 <span className="hidden sm:inline">Acompanhar</span>
                 <span>Pedido</span>
               </button>

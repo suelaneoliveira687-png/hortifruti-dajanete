@@ -1,4 +1,11 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  Auth
+} from 'firebase/auth';
 import { 
   getFirestore, 
   collection, 
@@ -28,6 +35,8 @@ const STORAGE_KEYS = {
 class DataSyncService {
   private firebaseApp: FirebaseApp | null = null;
   private db: Firestore | null = null;
+  private auth: Auth | null = null;
+  private unsubscribeAuth: (() => void) | null = null;
   private isFirebaseConnected: boolean = false;
   private broadcastChannel: BroadcastChannel | null = null;
   private listeners: {
@@ -35,11 +44,13 @@ class DataSyncService {
     config: Array<(config: StoreConfig) => void>;
     products: Array<(products: Product[]) => void>;
     connection: Array<(connected: boolean) => void>;
+    auth: Array<(authenticated: boolean) => void>;
   } = {
     orders: [],
     config: [],
     products: [],
-    connection: []
+    connection: [],
+    auth: []
   };
 
   constructor() {
@@ -99,6 +110,11 @@ class DataSyncService {
           this.firebaseApp = getApps()[0];
         }
         this.db = getFirestore(this.firebaseApp);
+        this.auth = getAuth(this.firebaseApp);
+        this.unsubscribeAuth?.();
+        this.unsubscribeAuth = onAuthStateChanged(this.auth, (user) => {
+          this.listeners.auth.forEach(cb => cb(Boolean(user)));
+        });
         this.isFirebaseConnected = true;
         this.notifyConnectionListeners(true);
         this.listenToFirebaseOrders();
@@ -109,11 +125,29 @@ class DataSyncService {
       console.warn('Firebase initialization error, using reactive local storage:', e);
     }
     this.isFirebaseConnected = false;
+    this.auth = null;
+    this.unsubscribeAuth?.();
+    this.unsubscribeAuth = null;
+    this.listeners.auth.forEach(cb => cb(false));
     this.notifyConnectionListeners(false);
   }
 
   public getSavedFirebaseConfig(): FirebaseCustomConfig | null {
     if (typeof window === 'undefined') return null;
+
+    const envConfig = {
+      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+      appId: import.meta.env.VITE_FIREBASE_APP_ID,
+      databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL
+    };
+    if (envConfig.apiKey && envConfig.authDomain && envConfig.projectId && envConfig.appId) {
+      return envConfig;
+    }
+
     const raw = localStorage.getItem(STORAGE_KEYS.FIREBASE_CONFIG);
     if (!raw) return null;
     try {
@@ -211,6 +245,27 @@ class DataSyncService {
     return () => {
       this.listeners.connection = this.listeners.connection.filter(cb => cb !== callback);
     };
+  }
+
+  public subscribeAdminAuth(callback: (authenticated: boolean) => void): () => void {
+    this.listeners.auth.push(callback);
+    callback(Boolean(this.auth?.currentUser));
+    return () => {
+      this.listeners.auth = this.listeners.auth.filter(cb => cb !== callback);
+    };
+  }
+
+  public async signInAdmin(email: string, password: string): Promise<void> {
+    if (!this.auth) {
+      throw new Error('Firebase não está configurado para autenticação.');
+    }
+    await signInWithEmailAndPassword(this.auth, email.trim(), password);
+  }
+
+  public async signOutAdmin(): Promise<void> {
+    if (this.auth) {
+      await signOut(this.auth);
+    }
   }
 
   private notifyOrderListeners(orders: Order[]) {

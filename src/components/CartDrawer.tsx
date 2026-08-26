@@ -232,10 +232,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
                 <div>
                   <h2 className="font-heading font-extrabold text-base sm:text-lg text-white leading-tight">
-                    Pedido Enviado!
+                    Pedido recebido!
                   </h2>
                   <p className="text-xs text-emerald-200 font-medium">
-                    Registrado com sucesso no sistema
+                    A Janete já recebeu seu pedido
                   </p>
                 </div>
               </div>
@@ -303,7 +303,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   <Info className="w-4 h-4 text-amber-700" /> Próximos Passos:
                 </p>
                 <p className="text-[11px] leading-relaxed text-amber-900">
-                  Seu pedido já está no sistema! Agora você pode <strong>confirmar no WhatsApp com a loja</strong> ou <strong>acompanhar o status em tempo real pelo site</strong>.
+                  Seu pedido foi registrado. Confirme no WhatsApp para a Janete separar seus produtos e acompanhe cada etapa pelo site.
                 </p>
               </div>
 
@@ -322,7 +322,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     </div>
                     <div>
                       <div className="font-extrabold text-sm leading-tight">
-                        Confirmar no WhatsApp com a Loja
+                        Confirmar pedido no WhatsApp
                       </div>
                       <div className="text-[11px] text-emerald-100 font-medium">
                         Enviar pedido #{submittedOrder.orderNumber} para a Janete
@@ -344,7 +344,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     </div>
                     <div>
                       <div className="font-extrabold text-sm leading-tight flex items-center gap-1.5">
-                        <span>Acompanhar Status pelo Site</span>
+                        <span>Acompanhar pedido</span>
                         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
                       </div>
                       <div className="text-[11px] text-slate-400 font-medium">

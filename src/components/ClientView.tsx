@@ -132,19 +132,19 @@ export const ClientView: React.FC<ClientViewProps> = ({
   }, [cartItems]);
 
   return (
-    <div className="pb-28 sm:pb-16 space-y-5 sm:space-y-6">
+    <div className="pb-24 sm:pb-16 space-y-5 sm:space-y-6 min-w-0">
       
       {/* Store Closed Warning */}
       {!config.isOpen && (
-        <div className="bg-amber-500 text-slate-950 p-4 rounded-2xl shadow-sm flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">🛑</span>
+        <div className="bg-amber-500 text-slate-950 p-3 sm:p-4 rounded-2xl shadow-sm flex items-start gap-3 sm:items-center">
+          <div className="flex items-start gap-3 min-w-0">
+            <span className="text-2xl flex-shrink-0">🛑</span>
             <div>
               <h4 className="font-heading font-extrabold text-sm sm:text-base">
-                A loja está fechada no momento para novos envios imediatos
+                A loja está fechada agora
               </h4>
               <p className="text-xs text-slate-900/80">
-                Você ainda pode navegar pelo cardápio, montar seu carrinho e enviar o pedido para a Janete agendar a entrega!
+                Monte seu carrinho e envie o pedido para a Janete agendar a entrega.
               </p>
             </div>
           </div>
@@ -157,7 +157,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
         {/* Real Documentary-Style Produce crates background photo */}
         <div 
           className="absolute inset-0 opacity-20 bg-cover bg-center mix-blend-luminosity pointer-events-none scale-105 transition-transform duration-700" 
-          style={{ backgroundImage: "url('/src/assets/images/hero_hortifruti_janete_1787333312803.jpg')" }}
+          style={{ backgroundImage: "url('/assets/images/hero_hortifruti_janete_1787333312803.jpg')" }}
         />
         
         <div className="absolute inset-0 bg-gradient-to-r from-[#142A1D]/95 via-[#1B3826]/85 to-transparent pointer-events-none" />
@@ -172,32 +172,37 @@ export const ClientView: React.FC<ClientViewProps> = ({
             <div className="space-y-1.5 sm:space-y-3 flex-1 min-w-0">
               {/* Status Pills with Brand Colors */}
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-black bg-[#0E1F15]/90 text-[#3FAFA0] border border-[#3FAFA0]/40 backdrop-blur-md">
-                  <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#3FAFA0] animate-pulse"></span> Aberto Agora
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-black border backdrop-blur-md ${
+                  config.isOpen
+                    ? 'bg-[#0E1F15]/90 text-[#3FAFA0] border-[#3FAFA0]/40'
+                    : 'bg-amber-950/90 text-amber-200 border-amber-300/40'
+                }`}>
+                  <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${config.isOpen ? 'bg-[#3FAFA0]' : 'bg-amber-300'}`}></span>
+                  {config.isOpen ? 'Aberto para pedidos' : 'Fechado agora'}
                 </span>
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-black bg-[#D92338]/90 text-white border border-white/20 backdrop-blur-md shadow-xs">
                   Selo de Qualidade 🍓
                 </span>
               </div>
 
-              <h1 className="font-heading font-black text-base sm:text-2xl md:text-3xl lg:text-4xl text-white tracking-tight leading-tight drop-shadow-xs">
-                O Frescor da Feira na Sua Porta!
+              <h1 className="font-heading font-black text-lg sm:text-2xl md:text-3xl lg:text-4xl text-white tracking-tight leading-tight drop-shadow-xs">
+                Feira fresca, entregue na sua porta
               </h1>
 
               <p className="text-emerald-100/95 text-xs sm:text-sm leading-relaxed max-w-lg font-medium line-clamp-2 sm:line-clamp-none">
-                A Janete escolhe cada fruta, verdura e legume fresquinho a dedo, com o carinho que sua família merece.
+                Escolha seus produtos, informe o endereço e receba tudo selecionado pela Janete, direto da feira para sua casa.
               </p>
 
               {/* 3 Destaques Visuais Acolhedores */}
               <div className="flex flex-wrap items-center gap-1 sm:gap-2 pt-0.5">
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold bg-white/15 text-white border border-[#C5A059]/30 backdrop-blur-md shadow-xs">
-                  <span>🛵</span> Entrega no Bairro
+                  <span>🛵</span> Entrega no bairro
                 </span>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold bg-white/15 text-white border border-[#C5A059]/30 backdrop-blur-md shadow-xs">
-                  <span>🍓</span> Escolhidos a Dedo
+                  <span>🍓</span> Selecionados na hora
                 </span>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold bg-white/15 text-white border border-[#C5A059]/30 backdrop-blur-md shadow-xs">
-                  <span>🍋</span> WhatsApp
+                  <span>🍋</span> Confirmação pelo WhatsApp
                 </span>
               </div>
 
@@ -244,7 +249,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
       </div>
 
       {/* Sticky Search and Category Filters */}
-      <div className="space-y-2.5 sm:space-y-3 sticky top-[48px] sm:top-[65px] z-30 bg-[#FAF8F5]/95 backdrop-blur-md pt-1.5 pb-2.5">
+      <div className="space-y-2.5 sm:space-y-3 sticky top-[94px] sm:top-[106px] z-30 bg-[#FAF8F5]/95 backdrop-blur-md pt-1.5 pb-2.5">
         
         {/* Search Bar */}
         <div className="relative">
@@ -253,7 +258,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar banana, morango, maxixe, quiabo, macaxeira..."
+            placeholder="Buscar frutas, verduras ou legumes..."
             className="w-full pl-10 pr-10 py-2.5 bg-white border border-[#EAE3D9] rounded-xl sm:rounded-2xl text-[#38302B] text-base sm:text-sm placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-[#285336] focus:border-transparent shadow-xs transition-all touch-manipulation"
           />
           {searchQuery && (
@@ -282,7 +287,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                   onClick={(e) => handleSelectCategory(cat.id, e.currentTarget)}
                   className="flex flex-col items-center gap-1 flex-shrink-0 snap-start cursor-pointer touch-manipulation active:scale-95 transition-transform"
                 >
-                  <div className={`w-13 h-13 rounded-2xl flex items-center justify-center text-xl transition-all shadow-2xs ${
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition-all shadow-2xs ${
                     isActive 
                       ? 'bg-gradient-to-tr from-[#285336] to-[#3FAFA0] text-white ring-2 ring-[#285336] ring-offset-2 scale-105 shadow-md shadow-[#285336]/25' 
                       : 'bg-white border border-[#EAE3D9] text-[#38302B] hover:bg-[#FAF8F5]'
