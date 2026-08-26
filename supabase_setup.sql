@@ -61,11 +61,32 @@ ON CONFLICT (bairro) DO NOTHING;
 -- ⚡ LIBERAÇÃO DE PERMISSÕES (ROW LEVEL SECURITY)
 -- ==============================================================================
 
--- Libera acesso total para ler, criar e atualizar pedidos
-ALTER TABLE pedidos DISABLE ROW LEVEL SECURITY;
+-- Cliente pode criar pedidos, mas somente usuários autenticados acessam a gestão.
+ALTER TABLE pedidos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE taxas_entrega ENABLE ROW LEVEL SECURITY;
 
--- Libera acesso total para ler e gerenciar taxas de entrega
-ALTER TABLE taxas_entrega DISABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "public_create_orders" ON pedidos;
+DROP POLICY IF EXISTS "authenticated_manage_orders" ON pedidos;
+DROP POLICY IF EXISTS "public_read_delivery_rates" ON taxas_entrega;
+DROP POLICY IF EXISTS "authenticated_manage_delivery_rates" ON taxas_entrega;
+
+CREATE POLICY "public_create_orders" ON pedidos
+  FOR INSERT TO anon, authenticated
+  WITH CHECK (TRUE);
+
+CREATE POLICY "authenticated_manage_orders" ON pedidos
+  FOR ALL TO authenticated
+  USING (TRUE)
+  WITH CHECK (TRUE);
+
+CREATE POLICY "public_read_delivery_rates" ON taxas_entrega
+  FOR SELECT TO anon, authenticated
+  USING (TRUE);
+
+CREATE POLICY "authenticated_manage_delivery_rates" ON taxas_entrega
+  FOR ALL TO authenticated
+  USING (TRUE)
+  WITH CHECK (TRUE);
 
 -- ==============================================================================
 -- 🔔 TRANSMISSÃO DE NOTIFICAÇÕES EM TEMPO REAL (REALTIME)
