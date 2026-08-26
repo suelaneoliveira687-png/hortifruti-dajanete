@@ -11,6 +11,11 @@ import {
   DollarSign, 
   ShoppingBag, 
   TrendingUp, 
+  BarChart3,
+  CalendarDays,
+  MapPin,
+  Plus,
+  Trash2,
   RotateCcw,
   Sparkles,
   Download,
@@ -19,7 +24,7 @@ import {
   ToggleRight,
   Archive
 } from 'lucide-react';
-import { Order, OrderStatus, Product, StoreConfig } from '../types';
+import { DeliveryRate, Order, OrderStatus, Product, StoreConfig } from '../types';
 import { AdminOrderCard } from './AdminOrderCard';
 import { ReceiptModal } from './ReceiptModal';
 import { formatCurrency } from '../utils/formatters';
@@ -48,13 +53,16 @@ export const AdminView: React.FC<AdminViewProps> = ({
   onResetData,
   onLogout
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'orders' | 'stock' | 'settings'>('orders');
+  const [activeSubTab, setActiveSubTab] = useState<'orders' | 'stock' | 'rates' | 'financial' | 'settings'>('orders');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [showAllDates, setShowAllDates] = useState(false);
   const [isSoundOn, setIsSoundOn] = useState(soundService.isSoundEnabled());
   const [selectedOrderForPrint, setSelectedOrderForPrint] = useState<Order | null>(null);
+  const [deliveryRates, setDeliveryRates] = useState<DeliveryRate[]>(config.deliveryRates || []);
+  const [newRateNeighborhood, setNewRateNeighborhood] = useState('');
+  const [newRateValue, setNewRateValue] = useState('');
 
   // Settings form local states
   const [editStoreName, setEditStoreName] = useState(config.storeName);
@@ -92,11 +100,30 @@ export const AdminView: React.FC<AdminViewProps> = ({
       minOrderValue: parseFloat(editMinOrder) || 0,
       estimatedDeliveryTime: editDeliveryTime,
       pixKey: editPixKey,
-      pixKeyType: editPixType
+      pixKeyType: editPixType,
+      deliveryRates
     });
     setSettingsSaved(true);
     soundService.playSuccessTone();
     setTimeout(() => setSettingsSaved(false), 2000);
+  };
+
+  const addDeliveryRate = () => {
+    const bairro = newRateNeighborhood.trim();
+    const valor = Number(newRateValue.replace(',', '.'));
+    if (!bairro || Number.isNaN(valor) || valor < 0) return;
+    if (deliveryRates.some(rate => rate.bairro.toLowerCase() === bairro.toLowerCase())) return;
+    const updatedRates = [...deliveryRates, { id: `rate-${Date.now()}`, bairro, valor }].sort((a, b) => a.bairro.localeCompare(b.bairro));
+    setDeliveryRates(updatedRates);
+    onUpdateStoreConfig({ deliveryRates: updatedRates });
+    setNewRateNeighborhood('');
+    setNewRateValue('');
+  };
+
+  const removeDeliveryRate = (rateId?: string) => {
+    const updatedRates = deliveryRates.filter(rate => rate.id !== rateId);
+    setDeliveryRates(updatedRates);
+    onUpdateStoreConfig({ deliveryRates: updatedRates });
   };
 
   // Metrics
@@ -244,6 +271,32 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
           <button
             type="button"
+            onClick={() => setActiveSubTab('rates')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+              activeSubTab === 'rates'
+                ? 'bg-emerald-800 text-white shadow-xs'
+                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            }`}
+          >
+            <MapPin className="w-4 h-4" />
+            <span>Taxas de Entrega</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('financial')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+              activeSubTab === 'financial'
+                ? 'bg-emerald-800 text-white shadow-xs'
+                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Financeiro</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveSubTab('settings')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
               activeSubTab === 'settings'
@@ -252,7 +305,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
             }`}
           >
             <SlidersHorizontal className="w-4 h-4" />
-            <span>Configurações da Loja</span>
+            <span>Configurações</span>
           </button>
         </div>
 
@@ -412,6 +465,46 @@ export const AdminView: React.FC<AdminViewProps> = ({
       )}
 
       {/* SUB-TAB 2: PRODUCT STOCK MANAGEMENT */}
+      {activeSubTab === 'rates' && (
+        <div className="bg-white rounded-3xl border border-stone-200 p-5 sm:p-6 shadow-xs space-y-5">
+          <div>
+            <h3 className="font-heading font-extrabold text-lg text-stone-900 flex items-center gap-2"><MapPin className="w-5 h-5 text-emerald-700" /> Taxas por Bairro</h3>
+            <p className="text-xs text-stone-500">Cadastre o valor de entrega para cada região atendida.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_160px_auto] gap-2">
+            <input value={newRateNeighborhood} onChange={e => setNewRateNeighborhood(e.target.value)} placeholder="Nome do bairro" className="bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm" />
+            <input value={newRateValue} onChange={e => setNewRateValue(e.target.value)} type="number" min="0" step="0.5" placeholder="Taxa (R$)" className="bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm" />
+            <button type="button" onClick={addDeliveryRate} className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-700 text-white rounded-xl text-xs font-bold hover:bg-emerald-800"><Plus className="w-4 h-4" /> Adicionar</button>
+          </div>
+          <div className="divide-y divide-stone-100 border border-stone-200 rounded-2xl overflow-hidden">
+            {deliveryRates.length === 0 ? <p className="p-6 text-center text-xs text-stone-500">Nenhum bairro cadastrado.</p> : deliveryRates.map(rate => (
+              <div key={rate.id || rate.bairro} className="flex items-center justify-between gap-3 p-3 text-sm">
+                <span className="font-bold text-stone-800">{rate.bairro}</span>
+                <div className="flex items-center gap-3"><strong className="text-emerald-800">{formatCurrency(rate.valor)}</strong><button type="button" onClick={() => removeDeliveryRate(rate.id)} title="Remover bairro" className="p-2 text-stone-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeSubTab === 'financial' && (() => {
+        const validOrders = orders.filter(order => order.status !== 'cancelled');
+        const todayKey = new Date().toDateString();
+        const todayOrders = validOrders.filter(order => new Date(order.createdAt).toDateString() === todayKey);
+        const monthOrders = validOrders.filter(order => { const date = new Date(order.createdAt); const now = new Date(); return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear(); });
+        const revenue = (items: Order[]) => items.reduce((sum, order) => sum + order.total, 0);
+        const groupedByDate = validOrders.reduce<Record<string, Order[]>>((groups, order) => { const key = new Date(order.createdAt).toLocaleDateString('pt-BR'); groups[key] = [...(groups[key] || []), order]; return groups; }, {});
+        return <div className="space-y-5">
+          <div><h3 className="font-heading font-extrabold text-lg text-stone-900 flex items-center gap-2"><BarChart3 className="w-5 h-5 text-emerald-700" /> Relatório Financeiro</h3><p className="text-xs text-stone-500">Faturamento preservado por data, mesmo quando um pedido é arquivado.</p></div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="bg-emerald-800 text-white rounded-2xl p-4"><span className="text-xs text-emerald-200">Hoje</span><p className="font-heading font-black text-2xl">{formatCurrency(revenue(todayOrders))}</p><span className="text-xs text-emerald-200">{todayOrders.length} pedidos</span></div>
+            <div className="bg-white border border-stone-200 rounded-2xl p-4"><span className="text-xs text-stone-500">Mês atual</span><p className="font-heading font-black text-2xl text-stone-900">{formatCurrency(revenue(monthOrders))}</p><span className="text-xs text-stone-500">{monthOrders.length} pedidos</span></div>
+            <div className="bg-white border border-stone-200 rounded-2xl p-4"><span className="text-xs text-stone-500">Histórico</span><p className="font-heading font-black text-2xl text-emerald-800">{formatCurrency(revenue(validOrders))}</p><span className="text-xs text-stone-500">{validOrders.length} pedidos válidos</span></div>
+          </div>
+          <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden"><div className="p-4 border-b border-stone-100 flex items-center gap-2"><CalendarDays className="w-4 h-4 text-emerald-700" /><strong className="text-sm">Histórico por dia</strong></div>{Object.entries(groupedByDate).sort(([, first], [, second]) => new Date(second[0].createdAt).getTime() - new Date(first[0].createdAt).getTime()).map(([date, dayOrders]) => <div key={date} className="flex items-center justify-between p-3 border-b border-stone-100 last:border-0 text-xs"><span className="font-bold text-stone-700">{date}</span><span className="text-stone-500">{dayOrders.length} pedidos</span><strong className="text-emerald-800">{formatCurrency(revenue(dayOrders))}</strong></div>)}</div>
+        </div>;
+      })()}
+
       {activeSubTab === 'stock' && (
         <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-xs space-y-6">
           <div className="flex items-center justify-between">

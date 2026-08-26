@@ -77,7 +77,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   if (!isOpen) return null;
 
   const subtotal = cartItems.reduce((acc, item) => acc + item.itemTotal, 0);
-  const deliveryFee = deliveryType === 'delivery' ? config.deliveryFee : 0;
+  const neighborhoodRate = config.deliveryRates?.find(rate => rate.bairro.toLowerCase() === neighborhood.trim().toLowerCase());
+  const deliveryFee = deliveryType === 'delivery' ? neighborhoodRate?.valor ?? config.deliveryFee : 0;
   const total = subtotal + deliveryFee;
 
   const isMinOrderMet = subtotal >= (config.minOrderValue || 0);
@@ -612,7 +613,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       <Bike className="w-5 h-5 text-emerald-600" />
                       <span>Entrega em Domicílio</span>
                       <span className="text-[11px] font-normal text-emerald-700">
-                        Taxa: {formatCurrency(config.deliveryFee)}
+                        Taxa: {formatCurrency(deliveryFee)}
                       </span>
                     </button>
 
@@ -896,7 +897,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
                 <div className="flex justify-between text-stone-600">
                   <span>Taxa de Entrega</span>
-                  <span>{deliveryType === 'delivery' ? formatCurrency(config.deliveryFee) : 'Grátis'}</span>
+                  <span>{deliveryType === 'delivery' ? formatCurrency(deliveryFee) : 'Grátis'}</span>
                 </div>
                 <div className="flex justify-between text-[#38302B] font-extrabold text-base pt-1 border-t border-stone-100 font-heading">
                   <span>Total</span>

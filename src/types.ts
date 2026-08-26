@@ -67,6 +67,7 @@ export interface StoreConfig {
   pixKey: string;
   pixKeyType: 'CPF' | 'CNPJ' | 'Email' | 'Celular' | 'Aleatória';
   adminPassword: string;
+  deliveryRates?: DeliveryRate[];
 }
 
 export interface DeliveryRate {
