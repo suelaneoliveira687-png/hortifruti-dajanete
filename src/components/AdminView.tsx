@@ -16,7 +16,8 @@ import {
   Download,
   Check,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Archive
 } from 'lucide-react';
 import { Order, OrderStatus, Product, StoreConfig } from '../types';
 import { AdminOrderCard } from './AdminOrderCard';
@@ -50,6 +51,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'orders' | 'stock' | 'settings'>('orders');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
+  const [showAllDates, setShowAllDates] = useState(false);
   const [isSoundOn, setIsSoundOn] = useState(soundService.isSoundEnabled());
   const [selectedOrderForPrint, setSelectedOrderForPrint] = useState<Order | null>(null);
 
@@ -122,6 +125,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
   // Filtered Orders
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
+      if (!showArchived && order.archived) return false;
+      if (showArchived && !order.archived) return false;
+      if (!showArchived && !showAllDates && new Date(order.createdAt).toDateString() !== new Date().toDateString()) return false;
       const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
       const matchesSearch = 
         order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -130,7 +136,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         (order.customer.street && order.customer.street.toLowerCase().includes(searchQuery.toLowerCase()));
       return matchesStatus && matchesSearch;
     });
-  }, [orders, statusFilter, searchQuery]);
+  }, [orders, statusFilter, searchQuery, showArchived, showAllDates]);
 
   return (
     <div className="pb-20 space-y-6">
@@ -322,7 +328,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               {/* Status Filter Buttons */}
               <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 scrollbar-none">
                 {[
-                  { id: 'all', label: 'Todos', count: orders.length },
+                  { id: 'all', label: 'Todos', count: orders.filter(o => !o.archived && (showAllDates || new Date(o.createdAt).toDateString() === new Date().toDateString())).length },
                   { id: 'pending', label: 'Pendentes', count: metrics.pendingOrders },
                   { id: 'preparing', label: 'Em Preparo', count: metrics.preparingOrders },
                   { id: 'delivering', label: 'Em Rota', count: metrics.deliveringOrders },
@@ -347,6 +353,30 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     </span>
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => { setShowArchived(!showArchived); setShowAllDates(false); setStatusFilter('all'); }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                    showArchived
+                      ? 'bg-stone-900 text-white shadow-xs'
+                      : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-100'
+                  }`}
+                >
+                  <Archive className="w-3.5 h-3.5" />
+                  <span>{showArchived ? 'Voltar aos ativos' : 'Histórico arquivado'}</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-stone-100 text-stone-600">
+                    {orders.filter(o => o.archived).length}
+                  </span>
+                </button>
+                {!showArchived && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllDates(!showAllDates)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 transition-all"
+                  >
+                    {showAllDates ? 'Somente hoje' : 'Ver todos os dias'}
+                  </button>
+                )}
               </div>
 
             </div>

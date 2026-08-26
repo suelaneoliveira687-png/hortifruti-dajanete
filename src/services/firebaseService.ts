@@ -12,7 +12,6 @@ import {
   doc, 
   setDoc, 
   updateDoc, 
-  deleteDoc, 
   onSnapshot, 
   query, 
   orderBy, 
@@ -395,14 +394,14 @@ class DataSyncService {
 
   public async deleteOrder(orderId: string): Promise<void> {
     const current = this.getLocalOrders();
-    const updated = current.filter(ord => ord.id !== orderId);
+    const updated = current.map(ord => ord.id === orderId ? { ...ord, archived: true } : ord);
     this.setLocalOrders(updated, true);
 
     if (this.db) {
       try {
-        await deleteDoc(doc(this.db, 'orders', orderId));
+        await updateDoc(doc(this.db, 'orders', orderId), { archived: true });
       } catch (err) {
-        console.warn('Error deleting order in Firebase:', err);
+        console.warn('Error archiving order in Firebase:', err);
       }
     }
   }

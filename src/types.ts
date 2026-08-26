@@ -51,6 +51,7 @@ export interface Order {
   deliveryFee: number;
   total: number;
   status: OrderStatus;
+  archived?: boolean;
   notes?: string;
 }
 

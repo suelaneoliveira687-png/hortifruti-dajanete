@@ -120,7 +120,7 @@ export const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
 
             {isConfirmingDelete ? (
               <div className="flex items-center gap-1 bg-red-50 border border-red-200 px-2 py-0.5 rounded-xl animate-in fade-in zoom-in-95 duration-150">
-                <span className="text-[11px] font-bold text-red-800">Excluir?</span>
+                  <span className="text-[11px] font-bold text-red-800">Arquivar?</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -128,7 +128,7 @@ export const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                     setIsConfirmingDelete(false);
                   }}
                   className="px-2 py-0.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white text-[11px] font-extrabold rounded-lg cursor-pointer transition shadow-2xs"
-                  title="Confirmar exclusão"
+                  title="Confirmar arquivamento"
                 >
                   Sim
                 </button>
@@ -146,7 +146,7 @@ export const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                 type="button"
                 onClick={() => setIsConfirmingDelete(true)}
                 className="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
-                title="Excluir Pedido"
+                title="Arquivar Pedido"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
