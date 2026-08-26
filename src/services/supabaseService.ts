@@ -1,4 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { auth } from './firebaseConfig';
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { DeliveryRate, Order, OrderStatus, Product, StoreConfig } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_STORE_CONFIG, INITIAL_MOCK_ORDERS } from '../data/mockProducts';
 
@@ -95,10 +97,10 @@ class SupabaseDataSyncService {
       this.products = this.readStorage(PRODUCTS_KEY, INITIAL_PRODUCTS);
       this.config = this.readStorage(CONFIG_KEY, INITIAL_STORE_CONFIG);
     }
+    onAuthStateChanged(auth, (user) => {
+      this.listeners.auth.forEach(callback => callback(Boolean(user)));
+    });
     if (supabase) {
-      supabase.auth.onAuthStateChange((_event, session) => {
-        this.listeners.auth.forEach(callback => callback(Boolean(session?.user)));
-      });
       this.subscribeRemoteOrders();
       this.subscribeRemoteConfig();
       this.listeners.connection.forEach(callback => callback(true));
@@ -143,15 +145,17 @@ class SupabaseDataSyncService {
   subscribeConfig(callback: (config: StoreConfig) => void) { this.listeners.config.push(callback); callback(this.config); return () => { this.listeners.config = this.listeners.config.filter(item => item !== callback); }; }
   subscribeProducts(callback: (products: Product[]) => void) { this.listeners.products.push(callback); callback(this.products); return () => { this.listeners.products = this.listeners.products.filter(item => item !== callback); }; }
   subscribeConnection(callback: (connected: boolean) => void) { this.listeners.connection.push(callback); callback(Boolean(supabase)); return () => { this.listeners.connection = this.listeners.connection.filter(item => item !== callback); }; }
-  subscribeAdminAuth(callback: (authenticated: boolean) => void) { this.listeners.auth.push(callback); callback(Boolean(supabase)); if (supabase) supabase.auth.getSession().then(({ data }) => callback(Boolean(data.session))); return () => { this.listeners.auth = this.listeners.auth.filter(item => item !== callback); }; }
+  subscribeAdminAuth(callback: (authenticated: boolean) => void) { this.listeners.auth.push(callback); callback(Boolean(auth.currentUser)); return () => { this.listeners.auth = this.listeners.auth.filter(item => item !== callback); }; }
 
   async signInAdmin(email: string, password: string) {
-    if (!supabase) throw new Error('Supabase não está configurado.');
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    if (error) throw new Error(error.message);
+    try {
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
   }
 
-  async signOutAdmin() { if (supabase) await supabase.auth.signOut(); }
+  async signOutAdmin() { await signOut(auth); }
 
   async createOrder(order: Order): Promise<void> {
     this.orders = [order, ...this.orders];

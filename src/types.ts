@@ -76,16 +76,6 @@ export interface DeliveryRate {
   valor: number;
 }
 
-export interface FirebaseCustomConfig {
-  apiKey: string;
-  authDomain: string;
-  projectId: string;
-  storageBucket: string;
-  messagingSenderId: string;
-  appId: string;
-  databaseURL?: string;
-}
-
 export interface SupabaseConfig {
   url: string;
   anonKey: string;

@@ -45,7 +45,7 @@ export default function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [config, setConfig] = useState<StoreConfig>(dataSync.getLocalConfig());
-  const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [trackedOrderId, setTrackedOrderId] = useState<string | null>(() => {
@@ -82,7 +82,7 @@ export default function App() {
   useEffect(() => {
     const unsubProducts = dataSync.subscribeProducts((p) => setProducts(p));
     const unsubConfig = dataSync.subscribeConfig((c) => setConfig(c));
-    const unsubConnection = dataSync.subscribeConnection((conn) => setIsFirebaseConnected(conn));
+    const unsubConnection = dataSync.subscribeConnection((conn) => setIsSupabaseConnected(conn));
     
     const unsubOrders = dataSync.subscribeOrders((newOrders) => {
       // If new orders came in after initial mount, play chime alert!
