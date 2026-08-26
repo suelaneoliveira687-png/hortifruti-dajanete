@@ -7,7 +7,7 @@ import { AdminLogin } from './components/AdminLogin';
 import { OrderTrackerModal } from './components/OrderTrackerModal';
 import { ReceiptModal } from './components/ReceiptModal';
 import { Product, StoreConfig, Order, CartItem, OrderStatus } from './types';
-import { dataSync } from './services/firebaseService';
+import { dataSync } from './services/supabaseService';
 import { soundService } from './services/soundService';
 import { JaneteLogo } from './components/JaneteLogo';
 import { Phone, MapPin, Sparkles, Clock, ShieldCheck, CheckCircle2 } from 'lucide-react';

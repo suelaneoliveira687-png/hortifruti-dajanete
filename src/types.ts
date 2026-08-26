@@ -85,3 +85,8 @@ export interface FirebaseCustomConfig {
   appId: string;
   databaseURL?: string;
 }
+
+export interface SupabaseConfig {
+  url: string;
+  anonKey: string;
+}
