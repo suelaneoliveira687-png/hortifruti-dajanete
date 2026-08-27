@@ -65,44 +65,75 @@ export const formatPhone = (phone: string): string => {
 };
 
 export const buildWhatsAppMessage = (order: Order, config: StoreConfig): string => {
-  const deliveryText = order.customer.deliveryType === 'delivery' 
-    ? `🛵 *Entrega em Domicílio*\n📍 Endereço: ${order.customer.street}, nº ${order.customer.number}${order.customer.neighborhood ? ` - ${order.customer.neighborhood}` : ''}${order.customer.complement ? ` (${order.customer.complement})` : ''}${order.customer.reference ? `\n📌 Ponto de Ref.: ${order.customer.reference}` : ''}`
-    : `🏪 *Retirada no Balcão*\n📍 Endereço da Loja: ${config.addressDisplay}`;
+  const clientText = `👤 *CLIENTE*
+Nome: ${order.customer.name}
+Telefone: ${order.customer.phone}`;
 
-  let paymentText = '';
-  if (order.paymentMethod === 'pix') {
-    paymentText = `🔑 *PIX* (Chave: ${config.pixKey})`;
-  } else if (order.paymentMethod === 'card_delivery') {
-    paymentText = `💳 *Cartão na Entrega* (Maquininha)`;
-  } else if (order.paymentMethod === 'cash') {
-    paymentText = `💵 *Dinheiro*${order.changeFor ? ` (Troco para ${formatCurrency(order.changeFor)})` : ' (Não precisa de troco)'}`;
+  let deliverySection = '';
+  if (order.customer.deliveryType === 'delivery') {
+    deliverySection = `\n\n📍 *ENDEREÇO DE ENTREGA*
+${order.customer.street}, ${order.customer.number}
+Bairro: ${order.customer.neighborhood}${order.customer.complement ? `\nComplemento: ${order.customer.complement}` : ''}${order.customer.reference ? `\nReferência: ${order.customer.reference}` : ''}`;
   }
 
-  const itemsList = order.items
-    .map((item, i) => ` ${i + 1}. *${item.product.name}* x ${item.quantity} ${item.product.unit} = ${formatCurrency(item.itemTotal)}${item.notes ? `\n    _(Obs: ${item.notes})_` : ''}`)
-    .join('\n');
+  const itemsText = order.items.map(item => {
+    const unit = item.product.unit?.toLowerCase() || '';
+    const isUnit = ['un', 'unid', 'unidade', 'unidades', ''].includes(unit);
+    const qtyText = isUnit ? `${item.quantity}x` : `${item.quantity} ${item.product.unit}`;
+    let text = `${qtyText} ${item.product.name} — ${formatCurrency(item.itemTotal)}`;
+    if (item.notes) {
+      text += `\n• ${item.notes}`;
+    }
+    return text;
+  }).join('\n\n');
 
-  const notesText = order.notes ? `\n📝 *Observações Gerais:* ${order.notes}\n` : '';
+  const subtotalText = `Subtotal: ${formatCurrency(order.subtotal)}`;
+  const deliveryFeeText = order.customer.deliveryType === 'delivery' ? `\nTaxa de entrega: ${formatCurrency(order.deliveryFee)}` : '';
+  const totalText = `*TOTAL: ${formatCurrency(order.total)}*`;
 
-  const message = 
-`🥬 *NOVO PEDIDO - ${config.storeName.toUpperCase()}* 🥬
-━━━━━━━━━━━━━━━━━━━━
-🆔 *Pedido:* #${order.orderNumber}
-👤 *Cliente:* ${order.customer.name}
-📱 *Telefone:* ${order.customer.phone}
+  let paymentMethodName = '';
+  if (order.paymentMethod === 'pix') {
+    paymentMethodName = 'Pix';
+  } else if (order.paymentMethod === 'card_delivery') {
+    paymentMethodName = 'Cartão na Entrega';
+  } else if (order.paymentMethod === 'cash') {
+    paymentMethodName = 'Dinheiro';
+    if (order.changeFor) paymentMethodName += ` (Troco para ${formatCurrency(order.changeFor)})`;
+  } else {
+    paymentMethodName = order.paymentMethod;
+  }
 
-🛒 *ITENS DO PEDIDO:*
-${itemsList}
-${notesText}
-━━━━━━━━━━━━━━━━━━━━
-📦 *Subtotal:* ${formatCurrency(order.subtotal)}
-🛵 *Taxa de Entrega:* ${order.customer.deliveryType === 'delivery' ? formatCurrency(order.deliveryFee) : 'Grátis (Retirada)'}
-💰 *TOTAL:* *${formatCurrency(order.total)}*
+  const paymentText = `💳 *PAGAMENTO*\n${paymentMethodName}`;
 
-💳 *Forma de Pagamento:* ${paymentText}
-${deliveryText}
-━━━━━━━━━━━━━━━━━━━━
-Obrigado pela preferência! Aguardo a confirmação do pedido. 🙏`;
+  const receivingForm = order.customer.deliveryType === 'delivery' ? 'Entrega' : 'Retirada';
+  const receivingText = `🚚 *FORMA DE RECEBIMENTO*\n${receivingForm}`;
+
+  const generalNotes = order.notes ? `\n\n📝 *OBSERVAÇÕES*\n${order.notes}` : '';
+
+  const message = `🛵 *NOVO PEDIDO #${order.orderNumber}*
+
+${clientText}${deliverySection}
+
+🛒 *ITENS DO PEDIDO*
+
+${itemsText}
+
+────────────────────
+
+💰 *RESUMO*
+
+${subtotalText}${deliveryFeeText}
+
+${totalText}
+
+${paymentText}
+
+${receivingText}${generalNotes}
+
+────────────────────
+
+📌 *PEDIDO #${order.orderNumber}*
+Aguardando confirmação do estabelecimento.`;
 
   return message;
 };
