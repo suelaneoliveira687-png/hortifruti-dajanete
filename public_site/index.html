@@ -100,15 +100,7 @@
 
       <!-- Ações da Barra: Sacola & Acompanhamento -->
       <div class="flex items-center gap-1.5 sm:gap-3">
-        <!-- Botão Acompanhar Pedido (quando houver pedido recente) -->
-        <button 
-          id="btn-track-order-header" 
-          onclick="openOrderTracker()" 
-          class="hidden min-h-[44px] inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-xs font-bold text-amber-900 transition-colors shadow-2xs cursor-pointer animate-pulse touch-manipulation">
-          <span class="w-2 h-2 rounded-full bg-amber-500 status-pulse"></span>
-          <i data-lucide="package" class="w-4 h-4 text-amber-600"></i>
-          <span class="hidden sm:inline">Acompanhar</span> Pedido
-        </button>
+        <!-- Botão Acompanhar Pedido (Removido) -->
 
         <!-- Botão Sacola Desktop / Header -->
         <button 
@@ -600,7 +592,7 @@
             <i data-lucide="info" class="w-4 h-4 text-amber-700"></i> Próximos Passos:
           </p>
           <p class="text-[11px] leading-relaxed text-amber-900">
-            Seu pedido foi registrado no sistema! Agora você pode <strong>confirmar no WhatsApp com a loja</strong> enviando a mensagem com o número do pedido, ou <strong>acompanhar o status ao vivo pelo site</strong>.
+            Seu pedido foi montado! Agora basta <strong>enviar no WhatsApp para a loja</strong> e finalizar o atendimento.
           </p>
         </div>
 
@@ -623,27 +615,7 @@
             </div>
             <i data-lucide="send" class="w-4 h-4 text-emerald-200 group-hover:translate-x-1 transition-transform"></i>
           </button>
-
-          <!-- 2. Acompanhar pelo Site -->
-          <button 
-            type="button"
-            id="btn-success-tracker"
-            onclick="openTrackerFromSuccessModal()"
-            class="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white font-extrabold rounded-2xl shadow-md flex items-center justify-between text-sm transition cursor-pointer group">
-            <div class="flex items-center gap-3 text-left">
-              <div class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 text-emerald-400 flex items-center justify-center text-xl flex-shrink-0">
-                <i data-lucide="activity" class="w-5 h-5 animate-pulse"></i>
-              </div>
-              <div>
-                <div class="font-extrabold text-sm leading-tight flex items-center gap-1.5">
-                  <span>Acompanhar Status pelo Site</span>
-                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                </div>
-                <div class="text-[11px] text-slate-400 font-medium">Ver status ao vivo na tela</div>
-              </div>
-            </div>
-            <i data-lucide="arrow-right" class="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform"></i>
-          </button>
+          <!-- 2. Acompanhar pelo Site (Removido) -->
         </div>
 
         <button onclick="closeSuccessModal()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer">
@@ -833,32 +805,6 @@
     </div>
   </div>
 
-  <!-- ================= CARD FLUTUANTE FIXO DE ACOMPANHAMENTO ================= -->
-  <div id="fixed-order-tracking-card" class="fixed bottom-20 sm:bottom-4 right-3 sm:right-6 z-40 max-w-sm w-[calc(100%-24px)] sm:w-auto transition-all duration-300 transform translate-y-28 opacity-0 pointer-events-none">
-    <div class="bg-slate-900/95 backdrop-blur-md text-white p-3.5 rounded-2xl shadow-2xl border border-emerald-500/30 flex items-center justify-between gap-3 shadow-emerald-950/30">
-      
-      <div class="flex items-center gap-2.5 min-w-0">
-        <div id="floating-status-icon-box" class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center text-base flex-shrink-0">
-          ⏳
-        </div>
-        <div class="min-w-0">
-          <div class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 status-pulse"></span>
-            <p id="floating-order-title" class="text-xs font-extrabold text-white truncate">Pedido #---</p>
-          </div>
-          <p id="floating-order-status" class="text-[11px] text-amber-300 font-bold truncate">Status: Pendente</p>
-        </div>
-      </div>
-
-      <button 
-        onclick="openOrderTracker()" 
-        class="flex-shrink-0 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1">
-        <span>Acompanhar</span>
-        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-      </button>
-
-    </div>
-  </div>
 
   <!-- ================= FOOTER / RODAPÉ ================= -->
   <footer class="bg-white border-t border-slate-200 mt-auto py-8 text-xs text-slate-500">
