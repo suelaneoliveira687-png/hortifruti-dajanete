@@ -886,57 +886,8 @@
     const SUPABASE_URL = "https://psfbutsevucdksmhttia.supabase.co";
     const SUPABASE_KEY = "sb_publishable_Yh4aq9mLbbgoOKymYxIIsw_AnCEyR-w";
     const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
-
-    // Salvar pedido no Supabase com a estrutura exata solicitada e tratamento de erro
-    async function saveOrderToSupabase(orderData) {
-      let savedId = null;
-
-      if (!supabaseClient) {
-        const errorMsg = 'Cliente Supabase não está inicializado.';
-        console.error(errorMsg);
-        alert('Erro ao enviar pedido: ' + errorMsg);
-        throw new Error(errorMsg);
-      }
-
-      try {
-        const { data, error } = await supabaseClient
-          .from('pedidos')
-          .insert([orderData])
-          .select();
-
-        if (error) {
-          alert('Erro ao enviar pedido: ' + error.message);
-          console.error(error);
-          throw error;
-        }
-
-        if (data && data.length > 0) {
-          savedId = data[0].id;
-          console.log("✅ Pedido gravado com sucesso no Supabase com ID:", savedId);
-        }
-      } catch (err) {
-        if (!err.message?.includes('alerted') && !err.message?.includes('Erro ao enviar pedido:')) {
-          alert('Erro ao enviar pedido: ' + (err.message || 'Falha de conexão com o banco de dados.'));
-          console.error(err);
-        }
-        throw err;
-      }
-
-      // Sincronização Local (Fallback & Broadcast para abas abertas)
-      const existingOrders = JSON.parse(localStorage.getItem('janete_orders_v1') || '[]');
-      const localId = savedId || ('PED-' + Math.floor(1000 + Math.random() * 9000));
-      const fullOrder = { ...orderData, id: localId, created_at: orderData.created_at || new Date().toISOString() };
-      existingOrders.unshift(fullOrder);
-      localStorage.setItem('janete_orders_v1', JSON.stringify(existingOrders));
-
-      try {
-        const channel = new BroadcastChannel('janete_orders_channel');
-        channel.postMessage({ type: 'NEW_ORDER', order: fullOrder });
-      } catch (e) {}
-
-      return localId;
-    }
   </script>
+
 
   <!-- ================= LÓGICA DO CLIENTE & CARDÁPIO ================= -->
   <script>
@@ -1591,14 +1542,10 @@
 
       const btnSubmit = document.getElementById('btn-submit-order');
       btnSubmit.disabled = true;
-      btnSubmit.innerHTML = `<span>Processando e Enviando...</span>`;
-
-      let pendingSuccessWhatsAppUrl = '';
-      let pendingSuccessOrderId = '';
+      btnSubmit.innerHTML = `<span>Montando Pedido...</span>`;
 
       try {
-        const orderId = await saveOrderToSupabase(orderPayload);
-        pendingSuccessOrderId = orderId;
+        const orderId = 'JAN-' + Math.floor(1000 + Math.random() * 9000);
 
         // Formatação da Mensagem do WhatsApp
         let msg = `*NOVO PEDIDO - HORTIFRUTI DA JANETE*\n`;
@@ -1629,12 +1576,9 @@
         msg += `\n*Forma de Pagamento:* ${formaPagamentoFinal}\n`;
         if (notes) msg += `*Obs Geral:* ${notes}\n`;
 
-        // Salvar último ID de pedido para rastreamento em tempo real
-        localStorage.setItem('ultimo_pedido_id', orderId);
-
-        // Armazenar URL do WhatsApp para clique do usuário no modal
+        // Armazenar URL do WhatsApp
         const encodedMsg = encodeURIComponent(msg);
-        pendingSuccessWhatsAppUrl = `https://wa.me/${STORE_WHATSAPP}?text=${encodedMsg}`;
+        const whatsappUrl = `https://wa.me/${STORE_WHATSAPP}?text=${encodedMsg}`;
 
         // Limpar carrinho e fechar drawer
         cart = [];
@@ -1642,14 +1586,12 @@
         updateCartUI();
         toggleCartDrawer(false);
 
-        // Preencher e exibir modal de confirmação / sucesso
-        showSuccessModal(orderId, name, totalAmount);
-
-        // Abrir WhatsApp com a mensagem do pedido formatada
+        // Abrir WhatsApp diretamente
         try {
-          window.open(pendingSuccessWhatsAppUrl, '_blank');
+          window.open(whatsappUrl, '_blank');
         } catch (e) {
-          console.warn("Navegador bloqueou popup do WhatsApp, link disponível no modal:", e);
+          console.warn("Navegador bloqueou popup do WhatsApp, tentando redirect na mesma aba:", e);
+          window.location.href = whatsappUrl;
         }
 
         // Confetes de comemoração
