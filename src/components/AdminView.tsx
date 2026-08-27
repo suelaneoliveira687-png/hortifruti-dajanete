@@ -189,7 +189,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
         {/* Sub Navigation */}
         <div className="flex items-center gap-2 border-t border-stone-100 pt-3 overflow-x-auto scrollbar-none">
-        <div className="flex items-center gap-2 border-t border-stone-100 pt-3 overflow-x-auto scrollbar-none">
 
           <button
             type="button"
