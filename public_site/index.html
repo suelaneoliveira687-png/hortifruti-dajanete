@@ -1555,7 +1555,7 @@
 
         msg += `*ITENS DO PEDIDO:*\n`;
         cart.forEach((item) => {
-          msg += `▪ ${item.quantity}${item.product.unit} ${item.product.name} - R$ ${item.itemTotal.toFixed(2).replace('.', ',')}\n`;
+          msg += `- ${item.quantity}${item.product.unit} ${item.product.name} - R$ ${item.itemTotal.toFixed(2).replace('.', ',')}\n`;
           if (item.notes) msg += `   _(Obs: ${item.notes})_\n`;
         });
 
