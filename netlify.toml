@@ -7,15 +7,10 @@
 
 [[redirects]]
   from = "/admin"
-  to = "/#admin"
-  status = 302
+  to = "/admin.html?admin=true"
+  status = 200
 
 [[redirects]]
   from = "/admin/"
-  to = "/#admin"
-  status = 302
-
-[[redirects]]
-  from = "/admin.html"
-  to = "/#admin"
-  status = 302
+  to = "/admin.html?admin=true"
+  status = 200
