@@ -25,8 +25,6 @@ export type DeliveryType = 'delivery' | 'pickup';
 
 export type PaymentMethod = 'pix' | 'card_delivery' | 'cash';
 
-export type OrderStatus = 'pending' | 'preparing' | 'delivering' | 'completed' | 'cancelled';
-
 export interface CustomerInfo {
   name: string;
   phone: string;
@@ -50,8 +48,6 @@ export interface Order {
   subtotal: number;
   deliveryFee: number;
   total: number;
-  status: OrderStatus;
-  archived?: boolean;
   notes?: string;
 }
 

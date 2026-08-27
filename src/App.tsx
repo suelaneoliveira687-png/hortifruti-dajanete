@@ -4,16 +4,13 @@ import { ClientView } from './components/ClientView';
 import { CartDrawer } from './components/CartDrawer';
 import { AdminView } from './components/AdminView';
 import { AdminLogin } from './components/AdminLogin';
-import { OrderTrackerModal } from './components/OrderTrackerModal';
-import { ReceiptModal } from './components/ReceiptModal';
-import { Product, StoreConfig, Order, CartItem, OrderStatus } from './types';
+import { Product, StoreConfig, Order, CartItem } from './types';
 import { dataSync } from './services/supabaseService';
 import { soundService } from './services/soundService';
 import { JaneteLogo } from './components/JaneteLogo';
 import { Phone, MapPin, Sparkles, Clock, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 const CART_STORAGE_KEY = 'janete_cart_session_v4';
-const LAST_ORDER_KEY = 'ultimo_pedido_id';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<'client' | 'admin'>(() => {
@@ -48,14 +45,6 @@ export default function App() {
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
 
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [trackedOrderId, setTrackedOrderId] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(LAST_ORDER_KEY);
-    }
-    return null;
-  });
-  const [isTrackerOpen, setIsTrackerOpen] = useState(false);
-  const [receiptModalOrder, setReceiptModalOrder] = useState<Order | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(CART_STORAGE_KEY);
@@ -83,22 +72,11 @@ export default function App() {
     const unsubProducts = dataSync.subscribeProducts((p) => setProducts(p));
     const unsubConfig = dataSync.subscribeConfig((c) => setConfig(c));
     const unsubConnection = dataSync.subscribeConnection((conn) => setIsSupabaseConnected(conn));
-    
-    const unsubOrders = dataSync.subscribeOrders((newOrders) => {
-      // If new orders came in after initial mount, play chime alert!
-      if (!isFirstLoad.current && newOrders.length > previousOrdersCount.current) {
-        soundService.playNewOrderChime();
-      }
-      isFirstLoad.current = false;
-      previousOrdersCount.current = newOrders.length;
-      setOrders(newOrders);
-    });
 
     return () => {
       unsubProducts();
       unsubConfig();
       unsubConnection();
-      unsubOrders();
     };
   }, []);
 
@@ -173,41 +151,7 @@ export default function App() {
     setCartItems([]);
   };
 
-  // Order submission
-  const handleSubmitOrder = async (order: Order) => {
-    await dataSync.createOrder(order);
-    setTrackedOrderId(order.id);
-    setIsTrackerOpen(true);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(LAST_ORDER_KEY, order.id);
-    }
-  };
-
-  const handleRemoveTrackedOrder = () => {
-    setTrackedOrderId(null);
-    setIsTrackerOpen(false);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(LAST_ORDER_KEY);
-    }
-  };
-
-  // Find tracked order object (by id or orderNumber)
-  const trackedOrder = orders.find(o => 
-    o.id === trackedOrderId || 
-    o.orderNumber === trackedOrderId ||
-    (trackedOrderId && o.orderNumber.toLowerCase() === trackedOrderId.toLowerCase())
-  ) || null;
-
-  useEffect(() => {
-    const normalizedStatus = String(trackedOrder?.status || '').toLowerCase();
-    const isCompleted = ['completed', 'concluído', 'concluido'].includes(normalizedStatus);
-
-    if (isCompleted) {
-      setTrackedOrderId(null);
-      setIsTrackerOpen(false);
-      localStorage.removeItem(LAST_ORDER_KEY);
-    }
-  }, [trackedOrder?.status]);
+  // Order functions were removed
 
   // Admin actions
   const handleLoginSuccess = async (email: string, password: string) => {
@@ -219,14 +163,7 @@ export default function App() {
     await dataSync.signOutAdmin();
   };
 
-  const handleUpdateStatus = async (orderId: string, status: OrderStatus) => {
-    await dataSync.updateOrderStatus(orderId, status);
-    soundService.playSuccessTone();
-  };
 
-  const handleDeleteOrder = async (orderId: string) => {
-    await dataSync.deleteOrder(orderId);
-  };
 
   const handleUpdateStoreConfig = async (newConfig: Partial<StoreConfig>) => {
     await dataSync.updateStoreConfig(newConfig);
@@ -240,17 +177,10 @@ export default function App() {
     await dataSync.resetSampleData();
   };
 
-  const handleClearArchivedOrders = async () => {
-    await dataSync.clearArchivedOrders();
-  };
 
-  const handleClearAllOrders = async () => {
-    await dataSync.clearAllOrders();
-  };
 
   const cartTotal = cartItems.reduce((acc, item) => acc + item.itemTotal, 0);
   const cartCount = cartItems.length;
-  const pendingOrdersCount = orders.filter(o => o.status === 'pending').length;
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800 flex flex-col justify-between selection:bg-emerald-200 selection:text-emerald-900">
@@ -263,9 +193,7 @@ export default function App() {
         cartCount={cartCount}
         cartTotal={cartTotal}
         openCart={() => setIsCartOpen(true)}
-        pendingOrdersCount={pendingOrdersCount}
-        hasTrackedOrder={Boolean(trackedOrderId && trackedOrder)}
-        onOpenTracker={() => setIsTrackerOpen(true)}
+        pendingOrdersCount={0}
       />
 
       {/* Main Content Body */}
@@ -281,16 +209,11 @@ export default function App() {
         ) : (
           isAdminAuthenticated ? (
             <AdminView
-              orders={orders}
               products={products}
               config={config}
-              onUpdateStatus={handleUpdateStatus}
-              onDeleteOrder={handleDeleteOrder}
               onUpdateStoreConfig={handleUpdateStoreConfig}
               onToggleProductStock={handleToggleProductStock}
               onResetData={handleResetData}
-              onClearArchivedOrders={handleClearArchivedOrders}
-              onClearAllOrders={handleClearAllOrders}
               onLogout={handleLogout}
             />
           ) : (
@@ -311,30 +234,6 @@ export default function App() {
         onUpdateItemNotes={handleUpdateItemNotes}
         onClearCart={handleClearCart}
         config={config}
-        onSubmitOrder={handleSubmitOrder}
-        onOpenTracker={(orderId) => {
-          setTrackedOrderId(orderId);
-          setIsTrackerOpen(true);
-        }}
-        onOpenReceipt={(order) => {
-          setReceiptModalOrder(order);
-        }}
-      />
-
-      {/* Order Tracker Modal */}
-      <OrderTrackerModal
-        order={trackedOrder}
-        isOpen={isTrackerOpen && Boolean(trackedOrder)}
-        onClose={() => setIsTrackerOpen(false)}
-        onRemove={handleRemoveTrackedOrder}
-        whatsappNumber={config.phoneWhatsApp || config.formattedPhone}
-      />
-
-      {/* Printable Receipt Modal */}
-      <ReceiptModal
-        order={receiptModalOrder}
-        config={config}
-        onClose={() => setReceiptModalOrder(null)}
       />
 
       {/* Footer */}

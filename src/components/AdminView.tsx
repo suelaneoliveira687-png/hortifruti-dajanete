@@ -25,46 +25,29 @@ import {
   ToggleRight,
   Archive
 } from 'lucide-react';
-import { DeliveryRate, Order, OrderStatus, Product, StoreConfig } from '../types';
-import { AdminOrderCard } from './AdminOrderCard';
-import { ReceiptModal } from './ReceiptModal';
+import { DeliveryRate, Product, StoreConfig } from '../types';
 import { formatCurrency } from '../utils/formatters';
 import { soundService } from '../services/soundService';
 
 interface AdminViewProps {
-  orders: Order[];
   products: Product[];
   config: StoreConfig;
-  onUpdateStatus: (orderId: string, status: OrderStatus) => void;
-  onDeleteOrder: (orderId: string) => void;
   onUpdateStoreConfig: (newConfig: Partial<StoreConfig>) => void;
   onToggleProductStock: (productId: string) => void;
   onResetData: () => void;
   onLogout: () => void;
-  onClearArchivedOrders: () => void;
-  onClearAllOrders: () => void;
 }
 
 export const AdminView: React.FC<AdminViewProps> = ({
-  orders,
   products,
   config,
-  onUpdateStatus,
-  onDeleteOrder,
   onUpdateStoreConfig,
   onToggleProductStock,
   onResetData,
-  onClearArchivedOrders,
-  onClearAllOrders,
   onLogout
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'stock' | 'rates' | 'settings'>('stock');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showArchived, setShowArchived] = useState(false);
-  const [showAllDates, setShowAllDates] = useState(false);
   const [isSoundOn, setIsSoundOn] = useState(soundService.isSoundEnabled());
-  const [selectedOrderForPrint, setSelectedOrderForPrint] = useState<Order | null>(null);
   const [deliveryRates, setDeliveryRates] = useState<DeliveryRate[]>(config.deliveryRates || []);
   const [newRateNeighborhood, setNewRateNeighborhood] = useState('');
   const [newRateValue, setNewRateValue] = useState('');
@@ -131,44 +114,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     onUpdateStoreConfig({ deliveryRates: updatedRates });
   };
 
-  // Metrics
-  const metrics = useMemo(() => {
-    const totalOrders = orders.length;
-    const pendingOrders = orders.filter(o => o.status === 'pending').length;
-    const preparingOrders = orders.filter(o => o.status === 'preparing').length;
-    const deliveringOrders = orders.filter(o => o.status === 'delivering').length;
-    const completedOrders = orders.filter(o => o.status === 'completed').length;
-    const totalRevenue = orders
-      .filter(o => o.status !== 'cancelled')
-      .reduce((acc, o) => acc + o.total, 0);
-    const avgTicket = totalOrders > 0 ? totalRevenue / (totalOrders - orders.filter(o => o.status === 'cancelled').length || 1) : 0;
 
-    return {
-      totalOrders,
-      pendingOrders,
-      preparingOrders,
-      deliveringOrders,
-      completedOrders,
-      totalRevenue,
-      avgTicket
-    };
-  }, [orders]);
-
-  // Filtered Orders
-  const filteredOrders = useMemo(() => {
-    return orders.filter(order => {
-      if (!showArchived && order.archived) return false;
-      if (showArchived && !order.archived) return false;
-      if (!showArchived && !showAllDates && new Date(order.createdAt).toDateString() !== new Date().toDateString()) return false;
-      const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-      const matchesSearch = 
-        order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customer.phone.includes(searchQuery) ||
-        (order.customer.street && order.customer.street.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchesStatus && matchesSearch;
-    });
-  }, [orders, statusFilter, searchQuery, showArchived, showAllDates]);
 
   return (
     <div className="pb-20 space-y-6">
@@ -555,12 +501,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         </div>
       )}
 
-      {/* Modals */}
-      <ReceiptModal
-        order={selectedOrderForPrint}
-        config={config}
-        onClose={() => setSelectedOrderForPrint(null)}
-      />
+
 
     </div>
   );

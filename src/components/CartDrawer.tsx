@@ -32,9 +32,6 @@ interface CartDrawerProps {
   onUpdateItemNotes: (productId: string, notes: string) => void;
   onClearCart: () => void;
   config: StoreConfig;
-  onSubmitOrder: (order: Order) => Promise<void>;
-  onOpenTracker?: (orderId: string) => void;
-  onOpenReceipt?: (order: Order) => void;
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({
@@ -45,10 +42,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onRemoveItem,
   onUpdateItemNotes,
   onClearCart,
-  config,
-  onSubmitOrder,
-  onOpenTracker,
-  onOpenReceipt
+  config
 }) => {
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('delivery');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
@@ -70,9 +64,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   
-  // Post-submission state
-  const [submittedOrder, setSubmittedOrder] = useState<Order | null>(null);
-  const [copiedOrderNumber, setCopiedOrderNumber] = useState(false);
+
 
   if (!isOpen) return null;
 
@@ -90,12 +82,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     setTimeout(() => setCopiedPix(false), 2000);
   };
 
-  const handleCopyOrderNumber = (num: string) => {
-    navigator.clipboard.writeText(num);
-    setCopiedOrderNumber(true);
-    soundService.playSuccessTone();
-    setTimeout(() => setCopiedOrderNumber(false), 2000);
-  };
+
 
   const handleFinishOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,29 +149,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         notes: generalNotes.trim() || undefined
       };
 
-      // 1. Apenas avançar para a tela de sucesso (não salva mais no backend)
-      // await onSubmitOrder(newOrder);
-      // if (typeof window !== 'undefined') {
-      //   localStorage.setItem('ultimo_pedido_id', newOrder.id);
-      // }
-
-      // 2. Play celebratory sound & confetti
-      soundService.playNewOrderChime();
-      try {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-      } catch {
-        // ignore
-      }
-
-      // 3. Set post-submission state so user sees confirmation & options
-      setSubmittedOrder(newOrder);
+      // Apenas montar a URL e abrir o WhatsApp
+      const whatsappUrl = getWhatsAppLink(newOrder, config);
+      window.open(whatsappUrl, '_blank');
 
       // Clear cart
       onClearCart();
+      onClose();
     } catch (err) {
       console.error(err);
       setFormError('Ocorreu um erro ao processar o pedido. Tente novamente.');
@@ -193,24 +164,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     }
   };
 
-  const handleCloseAndReset = () => {
-    setSubmittedOrder(null);
-    onClose();
-  };
 
-  const handleOpenTrackerFromSuccess = () => {
-    if (submittedOrder && onOpenTracker) {
-      onOpenTracker(submittedOrder.id);
-    }
-    setSubmittedOrder(null);
-    onClose();
-  };
-
-  const handleOpenWhatsAppFromSuccess = () => {
-    if (!submittedOrder) return;
-    const whatsappUrl = getWhatsAppLink(submittedOrder, config);
-    window.open(whatsappUrl, '_blank');
-  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -221,146 +175,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       />
 
       <div className="absolute inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
-        {submittedOrder ? (
-          /* ================= TELA DE SUCESSO / CONFIRMAÇÃO DO PEDIDO ENVIADO ================= */
-          <div className="w-screen max-w-full sm:max-w-md bg-stone-50 text-stone-800 shadow-2xl flex flex-col justify-between h-full animate-in fade-in">
-            
-            {/* Header */}
-            <div className="p-4 sm:p-5 bg-emerald-800 text-white border-b border-emerald-900 flex items-center justify-between pt-[max(1rem,env(safe-area-inset-top))] flex-shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-700/80 text-white flex items-center justify-center font-bold text-base">
-                  🎉
-                </div>
-                <div>
-                  <h2 className="font-heading font-extrabold text-base sm:text-lg text-white leading-tight">
-                    Pedido recebido!
-                  </h2>
-                  <p className="text-xs text-emerald-200 font-medium">
-                    A Janete já recebeu seu pedido
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleCloseAndReset}
-                className="p-2 rounded-xl text-emerald-200 hover:text-white hover:bg-emerald-700/50 transition-all cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-              
-              {/* Card Destaque com Número do Pedido */}
-              <div className="p-4 sm:p-5 bg-white border-2 border-emerald-300 rounded-2xl text-center space-y-3 shadow-xs">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 text-xl font-black">
-                  <Check className="w-6 h-6 stroke-[3]" />
-                </div>
-                <div>
-                  <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">
-                    Número do seu Pedido
-                  </span>
-                  <div className="flex items-center justify-center gap-2 mt-1">
-                    <span className="font-mono font-black text-2xl sm:text-3xl text-emerald-950 tracking-tight">
-                      #{submittedOrder.orderNumber}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyOrderNumber(submittedOrder.orderNumber)}
-                      className="p-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 transition flex items-center gap-1 text-xs font-bold cursor-pointer"
-                      title="Copiar número do pedido"
-                    >
-                      {copiedOrderNumber ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-700" />
-                          <span className="text-[10px] text-emerald-800">Copiado!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span className="text-[10px]">Copiar</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-stone-100 grid grid-cols-2 gap-2 text-xs text-left">
-                  <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200">
-                    <span className="text-[10px] text-stone-500 block font-medium">Cliente</span>
-                    <strong className="text-stone-900 font-bold truncate block">{submittedOrder.customer.name}</strong>
-                  </div>
-                  <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200">
-                    <span className="text-[10px] text-stone-500 block font-medium">Total do Pedido</span>
-                    <strong className="text-emerald-800 font-extrabold text-sm block">{formatCurrency(submittedOrder.total)}</strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* Informação / Instrução */}
-              <div className="text-xs text-stone-600 bg-amber-50/80 p-3.5 rounded-xl border border-amber-200/80 space-y-1">
-                <p className="font-bold text-amber-950 flex items-center gap-1.5">
-                  <Info className="w-4 h-4 text-amber-700" /> Próximos Passos:
-                </p>
-                <p className="text-[11px] leading-relaxed text-amber-900">
-                  Seu pedido foi registrado. Confirme no WhatsApp para a Janete separar seus produtos e acompanhe cada etapa pelo site.
-                </p>
-              </div>
-
-              {/* Ações Principais Solicitadas pelo Usuário */}
-              <div className="space-y-2.5 pt-1">
-                
-                {/* 1. Botão Confirmar no WhatsApp com a Loja */}
-                <button
-                  type="button"
-                  onClick={handleOpenWhatsAppFromSuccess}
-                  className="w-full py-3.5 px-4 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 active:scale-[0.99] text-white font-extrabold rounded-2xl shadow-lg shadow-emerald-700/25 flex items-center justify-between text-sm transition cursor-pointer group"
-                >
-                  <div className="flex items-center gap-3 text-left">
-                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl flex-shrink-0">
-                      <MessageSquare className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="font-extrabold text-sm leading-tight">
-                        Confirmar pedido no WhatsApp
-                      </div>
-                      <div className="text-[11px] text-emerald-100 font-medium">
-                        Enviar pedido #{submittedOrder.orderNumber} para a Janete
-                      </div>
-                    </div>
-                  </div>
-                  <Send className="w-4 h-4 text-emerald-200 group-hover:translate-x-1 transition-transform" />
-                </button>
-
-                {/* O botão de Acompanhar Status foi removido pois não usamos mais painel adm */}
-              </div>
-
-              {/* Botões Auxiliares */}
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-stone-200">
-                {onOpenReceipt && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onOpenReceipt(submittedOrder);
-                    }}
-                    className="py-2.5 px-3 bg-white hover:bg-stone-100 border border-stone-200 text-stone-700 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
-                  >
-                    <span>🖨️ Ver Comprovante</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={handleCloseAndReset}
-                  className={`py-2.5 px-3 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${onOpenReceipt ? '' : 'col-span-2'}`}
-                >
-                  <span>Voltar ao Cardápio</span>
-                </button>
-              </div>
-
-            </div>
-          </div>
-        ) : (
         <div className="w-screen max-w-full sm:max-w-md bg-stone-50 text-stone-800 shadow-2xl flex flex-col justify-between h-full">
           
           {/* Header */}
@@ -908,13 +722,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
               <p className="text-[11px] text-stone-500 text-center flex items-center justify-center gap-1 font-medium">
                 <ShieldCheck className="w-3.5 h-3.5 text-[#285336]" />
-                Após enviar, confirme no WhatsApp ou acompanhe pelo site
+                Após enviar, confira a mensagem no WhatsApp
               </p>
             </div>
           )}
 
         </div>
-        )}
       </div>
     </div>
   );
