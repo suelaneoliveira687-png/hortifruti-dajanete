@@ -162,11 +162,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         notes: generalNotes.trim() || undefined
       };
 
-      // 1. Save to Firebase / dataSync service & localStorage
-      await onSubmitOrder(newOrder);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('ultimo_pedido_id', newOrder.id);
-      }
+      // 1. Apenas avançar para a tela de sucesso (não salva mais no backend)
+      // await onSubmitOrder(newOrder);
+      // if (typeof window !== 'undefined') {
+      //   localStorage.setItem('ultimo_pedido_id', newOrder.id);
+      // }
 
       // 2. Play celebratory sound & confetti
       soundService.playNewOrderChime();
@@ -333,28 +333,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   <Send className="w-4 h-4 text-emerald-200 group-hover:translate-x-1 transition-transform" />
                 </button>
 
-                {/* 2. Botão Acompanhar Status pelo Site */}
-                <button
-                  type="button"
-                  onClick={handleOpenTrackerFromSuccess}
-                  className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white font-extrabold rounded-2xl shadow-md flex items-center justify-between text-sm transition cursor-pointer group"
-                >
-                  <div className="flex items-center gap-3 text-left">
-                    <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 text-emerald-400 flex items-center justify-center text-xl flex-shrink-0">
-                      <Activity className="w-5 h-5 animate-pulse" />
-                    </div>
-                    <div>
-                      <div className="font-extrabold text-sm leading-tight flex items-center gap-1.5">
-                        <span>Acompanhar pedido</span>
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                      </div>
-                      <div className="text-[11px] text-slate-400 font-medium">
-                        Ver status ao vivo: Na fila ➔ Em preparo ➔ Em rota
-                      </div>
-                    </div>
-                  </div>
-                  <Check className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
-                </button>
+                {/* O botão de Acompanhar Status foi removido pois não usamos mais painel adm */}
               </div>
 
               {/* Botões Auxiliares */}

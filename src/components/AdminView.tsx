@@ -58,7 +58,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   onClearAllOrders,
   onLogout
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'orders' | 'stock' | 'rates' | 'financial' | 'settings'>('orders');
+  const [activeSubTab, setActiveSubTab] = useState<'stock' | 'rates' | 'settings'>('stock');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showArchived, setShowArchived] = useState(false);
@@ -243,23 +243,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
         {/* Sub Navigation */}
         <div className="flex items-center gap-2 border-t border-stone-100 pt-3 overflow-x-auto scrollbar-none">
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('orders')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
-              activeSubTab === 'orders'
-                ? 'bg-emerald-800 text-white shadow-xs'
-                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-            }`}
-          >
-            <ShoppingBag className="w-4 h-4" />
-            <span>Pedidos em Tempo Real</span>
-            {metrics.pendingOrders > 0 && (
-              <span className="bg-amber-400 text-stone-950 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold animate-pulse">
-                {metrics.pendingOrders}
-              </span>
-            )}
-          </button>
+        <div className="flex items-center gap-2 border-t border-stone-100 pt-3 overflow-x-auto scrollbar-none">
 
           <button
             type="button"
@@ -287,18 +271,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
             <span>Taxas de Entrega</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('financial')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
-              activeSubTab === 'financial'
-                ? 'bg-emerald-800 text-white shadow-xs'
-                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4" />
-            <span>Financeiro</span>
-          </button>
+
 
           <button
             type="button"
@@ -316,158 +289,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
       </div>
 
-      {/* SUB-TAB 1: REALTIME ORDERS */}
-      {activeSubTab === 'orders' && (
-        <div className="space-y-6">
-          
-          {/* Key Metrics Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs space-y-1">
-              <div className="flex items-center justify-between text-stone-500 text-xs font-semibold">
-                <span>Total Faturado</span>
-                <DollarSign className="w-4 h-4 text-emerald-600" />
-              </div>
-              <p className="font-heading font-extrabold text-lg sm:text-2xl text-emerald-800">
-                {formatCurrency(metrics.totalRevenue)}
-              </p>
-              <p className="text-[10px] text-stone-400">Excluindo cancelados</p>
-            </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs space-y-1">
-              <div className="flex items-center justify-between text-stone-500 text-xs font-semibold">
-                <span>Total de Pedidos</span>
-                <ShoppingBag className="w-4 h-4 text-emerald-600" />
-              </div>
-              <p className="font-heading font-extrabold text-lg sm:text-2xl text-stone-900">
-                {metrics.totalOrders}
-              </p>
-              <p className="text-[10px] text-stone-400">{metrics.completedOrders} concluídos</p>
-            </div>
-
-            <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs space-y-1">
-              <div className="flex items-center justify-between text-stone-500 text-xs font-semibold">
-                <span>Aguardando Preparo</span>
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-              </div>
-              <p className="font-heading font-extrabold text-lg sm:text-2xl text-amber-600">
-                {metrics.pendingOrders}
-              </p>
-              <p className="text-[10px] text-stone-400">Necessitam atenção</p>
-            </div>
-
-            <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs space-y-1">
-              <div className="flex items-center justify-between text-stone-500 text-xs font-semibold">
-                <span>Ticket Médio</span>
-                <TrendingUp className="w-4 h-4 text-emerald-600" />
-              </div>
-              <p className="font-heading font-extrabold text-lg sm:text-2xl text-stone-900">
-                {formatCurrency(metrics.avgTicket)}
-              </p>
-              <p className="text-[10px] text-stone-400">Por pedido válido</p>
-            </div>
-          </div>
-
-          {/* Search & Status Filters */}
-          <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-              
-              {/* Search Bar */}
-              <div className="relative w-full sm:w-80">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar por cliente, nº do pedido ou rua..."
-                  className="w-full pl-10 pr-4 py-2 bg-white border border-stone-200 rounded-xl text-xs sm:text-sm text-stone-900 focus:outline-emerald-600"
-                />
-              </div>
-
-              {/* Status Filter Buttons */}
-              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 scrollbar-none">
-                {[
-                  { id: 'all', label: 'Todos', count: orders.filter(o => !o.archived && (showAllDates || new Date(o.createdAt).toDateString() === new Date().toDateString())).length },
-                  { id: 'pending', label: 'Pendentes', count: metrics.pendingOrders },
-                  { id: 'preparing', label: 'Em Preparo', count: metrics.preparingOrders },
-                  { id: 'delivering', label: 'Em Rota', count: metrics.deliveringOrders },
-                  { id: 'completed', label: 'Concluídos', count: metrics.completedOrders },
-                  { id: 'cancelled', label: 'Cancelados', count: orders.filter(o => o.status === 'cancelled').length }
-                ].map((st) => (
-                  <button
-                    key={st.id}
-                    type="button"
-                    onClick={() => setStatusFilter(st.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                      statusFilter === st.id
-                        ? 'bg-stone-900 text-white shadow-xs'
-                        : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-100'
-                    }`}
-                  >
-                    <span>{st.label}</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${
-                      statusFilter === st.id ? 'bg-stone-700 text-stone-200' : 'bg-stone-100 text-stone-600'
-                    }`}>
-                      {st.count}
-                    </span>
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => { setShowArchived(!showArchived); setShowAllDates(false); setStatusFilter('all'); }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                    showArchived
-                      ? 'bg-stone-900 text-white shadow-xs'
-                      : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-100'
-                  }`}
-                >
-                  <Archive className="w-3.5 h-3.5" />
-                  <span>{showArchived ? 'Voltar aos ativos' : 'Histórico arquivado'}</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-stone-100 text-stone-600">
-                    {orders.filter(o => o.archived).length}
-                  </span>
-                </button>
-                {!showArchived && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllDates(!showAllDates)}
-                    className="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 transition-all"
-                  >
-                    {showAllDates ? 'Somente hoje' : 'Ver todos os dias'}
-                  </button>
-                )}
-              </div>
-
-            </div>
-          </div>
-
-          {/* Orders Cards Grid */}
-          {filteredOrders.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-stone-200 p-12 text-center space-y-3">
-              <div className="text-4xl">📦</div>
-              <h3 className="font-heading font-bold text-stone-800 text-base">
-                Nenhum pedido encontrado
-              </h3>
-              <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                Não há pedidos com os filtros atuais. Quando um cliente fizer um pedido, ele aparecerá aqui instantaneamente com aviso sonoro!
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {filteredOrders.map((order) => (
-                <AdminOrderCard
-                  key={order.id}
-                  order={order}
-                  config={config}
-                  onUpdateStatus={onUpdateStatus}
-                  onDeleteOrder={onDeleteOrder}
-                  onPrintOrder={(ord) => setSelectedOrderForPrint(ord)}
-                />
-              ))}
-            </div>
-          )}
-
-        </div>
-      )}
 
       {/* SUB-TAB 2: PRODUCT STOCK MANAGEMENT */}
       {activeSubTab === 'rates' && (
@@ -492,13 +314,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         </div>
       )}
 
-      {activeSubTab === 'financial' && (
-        <FinancialPanel
-          orders={orders}
-          onClearArchived={onClearArchivedOrders}
-          onClearAll={onClearAllOrders}
-        />
-      )}
+
 
       {activeSubTab === 'stock' && (
         <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-xs space-y-6">
